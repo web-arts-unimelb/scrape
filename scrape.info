@@ -1,0 +1,4 @@
+name = Drush Scrape
+description = This drush plugin scrapes content from web pages.
+
+core = 7.x
