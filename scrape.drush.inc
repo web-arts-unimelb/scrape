@@ -99,6 +99,7 @@ function drush_scrape($list = '') {
 
     // Loop through the page body and add the links to drupal-hosted files.
     $replacements = array();
+    $files = array();
     foreach ($page_files as $link => $file) {
       $furl = file_create_url($file['uri']);
       $furi = drupal_parse_url($furl);
@@ -115,7 +116,7 @@ function drush_scrape($list = '') {
     $node->language = LANGUAGE_NONE;
     $node->body[$node->language] = array(0 => array('format'=> 'full_html', 'value' => $page_body));
     $node->path = array('alias' => substr($uri['path'], 1));
-    $node->$target_files[$node->language] = $files;
+    $node->{$target_files}[$node->language] = $files;
 
     node_save($node);
 
