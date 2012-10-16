@@ -20,11 +20,25 @@ function scrape_drush_command() {
       'source-content' => dt('Specify an element selector for the page content.'),
       'target-node' => dt('Specify the type of node to create on the target Drupal.'),
       'target-files' => dt('Specify the file field on the target nodes that should store document attachments.'),
+      'target-images' => dt('Specify the image field on the target nodes that should store images.'),
     ),
     'examples' => array(
       'simple' =>  dt('drush scape filename.txt'),
       'with url' => dt('drush scape --url=http://ltrc.unimelb.edu.au filename.txt'),
-      'complex' => dt('drush scape --source-url=http://ltrc.unimelb.edu.au --source-title=title --source-content=div[id=content] --target-node=page --target-files=field_attachment filename.txt'),
+      'complex' => dt('drush scape --source-url=http://ltrc.unimelb.edu.au --source-title=title --source-content=div[id=content] --target-node=page --target-files=field_attachment --target-images=field_image filename.txt'),
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+  );
+
+  // Hardcoded equipment import.
+  $items['equipment-import'] = array(
+    'callback' => 'drush_equipment_import',
+    'description' => dt('Import a well-formatted equipment CSV to equipment nodes.'),
+    'arguments' => array(
+      'csv' => dt('File containing the equipment information.'),
+    ),
+    'examples' => array(
+      'columns' => dt('Type,Name,Description,Manual,ImageURL,BookingURL,ResourceTitle,ResourceURL,Site'),
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
@@ -66,6 +80,10 @@ function drush_scrape($list = '') {
   if (empty($target_files)) {
     $target_files = 'field_attachment';
   }
+  $target_images = drush_get_option('target-images');
+  if (empty($target_images)) {
+    $target_images = 'field_image';
+  }
 
   $fp = fopen($list, 'r');
   if (!$fp) {
@@ -96,6 +114,7 @@ function drush_scrape($list = '') {
     $page_title = trim($page->find($title, 0)->plaintext);
     $page_body = trim($page->find($content, 0));
     $page_files = drush_scrape_get_files($url, $page, $content);
+    $page_images = drush_scrape_get_images($url, $page, $content);
 
     // Loop through the page body and add the links to drupal-hosted files.
     $replacements = array();
@@ -106,6 +125,18 @@ function drush_scrape($list = '') {
       $replacements[$link] = $furi['path'];
       $files[] = $file;
     }
+
+    // Loop through the page body and add the links to drupal-hosted images.
+    $replacements = array();
+    $images = array();
+    foreach ($page_images as $link => $image) {
+      $furl = file_create_url($image['uri']);
+      $furi = drupal_parse_url($furl);
+      $replacements[$link] = $furi['path'];
+      $images[] = $image;
+    }
+
+    // Replace all the things!
     $page_body = strtr($page_body, $replacements);
 
     $node = new stdClass();
@@ -117,6 +148,7 @@ function drush_scrape($list = '') {
     $node->body[$node->language] = array(0 => array('format'=> 'full_html', 'value' => $page_body));
     $node->path = array('alias' => substr($uri['path'], 1));
     $node->{$target_files}[$node->language] = $files;
+    $node->{$target_images}[$node->language] = $images;
 
     node_save($node);
 
@@ -130,6 +162,38 @@ function drush_scrape($list = '') {
     $page->clear();
   }
   fclose($fp);
+}
+
+/**
+ * Helper to extract and download local images.
+ */
+function drush_scrape_get_images($url, $page, $content) {
+  $images = array();
+  foreach ($page->find($content . ' img') as $image) {
+    // Absolute local image.
+    if ($image->src[0] == '/') {
+      // Prepend the hostname part of the URL only.
+      $uri = parse_url($url);
+      // Download, store.
+      $file = drush_scrape_get_file($uri['scheme'] . '://' . $uri['host'] . $image->src, $image->alt);
+      if (!empty($file))
+        $images[$image->src] = $file;
+    }
+    // Remote link
+    else if (strpos($link->href, 'http') !== FALSE) {
+      // Do not fetch.
+    }
+    // Local relative link.
+    else {
+      // Prepend the dirname() of the current url.
+      // Download, store.
+      $file = drush_scrape_get_file(dirname($url) . '/' . $image->src, $image->alt);
+      if (!empty($file))
+        $images[$image->href] = $file;
+    }
+  }
+
+  return $images;
 }
 
 /**
@@ -197,4 +261,74 @@ function drush_scrape_get_file($url, $title = '') {
       'rdf_mapping' => array(),
     );
   }
+}
+
+/**
+ * Command callback.
+ *
+ * Import CSV data into equipment nodes.
+ * 'Type,Name,Description,Manual,ImageURL,BookingURL,ResourceTitle,ResourceURL,Site'
+ */
+function drush_equipment_import($list = '') {
+  if (empty($list)) {
+    drush_set_error('NO_FILE', dt('I require a CSV file with a list of columns.'));
+    return 1;
+  }
+  if (!file_exists($list)) {
+    drush_set_error('NO_FILE', dt('List file "@file" does not exist.', array('@file'=> $list)));
+    return 1;
+  }
+
+  $fp = fopen($list, 'r');
+  if (!$fp) {
+    drush_set_error('FILE_PERM', dt('Cannot open file @file.', array('@file'=> $list)));
+  }
+
+  $pos = 0;
+
+  while (!feof($fp)) {
+READ:
+    fseek($fp, $pos, SEEK_SET);
+    $data = fgetcsv($fp, 2048);
+    $pos = ftell();
+
+    // No data, skip.
+    if (!count($data))
+      continue;
+
+    // Header row, skip.
+    if ($data[0] == 'Type')
+      continue;
+
+    if (empty($data[0])) {
+
+      // This is a new resource to be added to the previous item.
+      for(;;) {
+        // Get position.
+        $pos = ftell();
+        $resource = fgetcsv($fp, 2048);
+        if (!empty($resource[0])) {
+          goto READ;
+        }
+        else {
+
+        }
+      }
+    }
+    else {
+      $node = stdClass();
+      $node->field_equipment_type[LANGUAGE_NONE][] = array('value' => trim($data[0]));
+      $node->title = trim($data[1]);
+      $node->body[LANGUAGE_NONE][] = array('value' => trim($data[2]));
+      $node->field_equipment_manual[LANGUAGE_NONE][] = array('url' => trim($data[2]));
+      // Image - fetch, save attach.
+      $node->field_equipment_image[LANGUAGE_NONE][] = $a_file_array;
+
+
+     //  'Type,Name,Description,Manual,ImageURL,BookingURL,ResourceTitle,ResourceURL,Site'
+    }
+  }
+
+  fclose($fp);
+
 }
