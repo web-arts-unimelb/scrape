@@ -113,11 +113,11 @@ function drush_scrape($list = '') {
 
     $page_title = trim($page->find($title, 0)->plaintext);
     $page_body = trim($page->find($content, 0));
+    $replacements = drush_scrape_get_links($url, $page, $content);
     $page_files = drush_scrape_get_files($url, $page, $content);
     $page_images = drush_scrape_get_images($url, $page, $content);
 
     // Loop through the page body and add the links to drupal-hosted files.
-    $replacements = array();
     $files = array();
     foreach ($page_files as $link => $file) {
       $furl = file_create_url($file['uri']);
@@ -127,7 +127,6 @@ function drush_scrape($list = '') {
     }
 
     // Loop through the page body and add the links to drupal-hosted images.
-    $replacements = array();
     $images = array();
     foreach ($page_images as $link => $image) {
       $furl = file_create_url($image['uri']);
@@ -146,7 +145,7 @@ function drush_scrape($list = '') {
     $node->title = check_plain($page_title);
     $node->language = LANGUAGE_NONE;
     $node->body[$node->language] = array(0 => array('format'=> 'full_html', 'value' => $page_body));
-    $node->path = array('alias' => substr($uri['path'], 1));
+    $node->path = array('alias' => _drush_scrape_deindex(substr($uri['path'], 1)));
     $node->{$target_files}[$node->language] = $files;
     $node->{$target_images}[$node->language] = $images;
 
@@ -323,12 +322,23 @@ READ:
       $node->field_equipment_manual[LANGUAGE_NONE][] = array('url' => trim($data[2]));
       // Image - fetch, save attach.
       $node->field_equipment_image[LANGUAGE_NONE][] = $a_file_array;
-
-
-     //  'Type,Name,Description,Manual,ImageURL,BookingURL,ResourceTitle,ResourceURL,Site'
     }
   }
-
   fclose($fp);
+}
 
+function _drush_scrape_deindex($text) {
+  return strtr($text, array('/index.html' => ''));
+}
+
+function drush_scrape_get_links($url, $page, $content) {
+  $links = array();
+  foreach ($page->find($content . ' a') as $link) {
+    // Absolute local link.
+    if ($link->href[0] == '/') {
+      // Prepend the hostname part of the URL only.
+      $links[$link->href] = _drush_scrape_deindex($link->href);
+    }
+  }
+  return $links;
 }
