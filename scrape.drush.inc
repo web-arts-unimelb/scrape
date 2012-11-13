@@ -103,6 +103,9 @@ function drush_scrape($list = '') {
     if (!empty($source_url)) {
       $url = $source_url . $uri;
     }
+    else {
+      $url = $uri;
+    }
 
     // Grab etc.
     $page = file_get_html($url);
@@ -283,13 +286,10 @@ function drush_equipment_import($list = '') {
     drush_set_error('FILE_PERM', dt('Cannot open file @file.', array('@file'=> $list)));
   }
 
-  $pos = 0;
+  $items = array();
 
   while (!feof($fp)) {
-READ:
-    fseek($fp, $pos, SEEK_SET);
     $data = fgetcsv($fp, 2048);
-    $pos = ftell();
 
     // No data, skip.
     if (!count($data))
@@ -299,32 +299,48 @@ READ:
     if ($data[0] == 'Type')
       continue;
 
-    if (empty($data[0])) {
-
-      // This is a new resource to be added to the previous item.
-      for(;;) {
-        // Get position.
-        $pos = ftell();
-        $resource = fgetcsv($fp, 2048);
-        if (!empty($resource[0])) {
-          goto READ;
-        }
-        else {
-
-        }
+    if (!empty($data[0])) {
+      // New item, shunt the old one onto the array processed items.
+      if (!empty($item)) {
+        $items[] = $item;
       }
+
+      $item = array();
+      $item['images'] = array();
+      $item['resources'] = array();
+
+      $item['type'] = trim($data[0]);
+      $item['title'] = trim($data[1]);
+      $item['description'] = trim($data[2]);
+      $item['manual'] =  trim($data[3]);
+      $item['image'] = trim($data[4]);
+      $item['resources'][] = array('title' =>  trim($data[4]), 'url' => trim($data[5]));
     }
     else {
-      $node = stdClass();
-      $node->field_equipment_type[LANGUAGE_NONE][] = array('value' => trim($data[0]));
-      $node->title = trim($data[1]);
-      $node->body[LANGUAGE_NONE][] = array('value' => trim($data[2]));
-      $node->field_equipment_manual[LANGUAGE_NONE][] = array('url' => trim($data[2]));
-      // Image - fetch, save attach.
-      $node->field_equipment_image[LANGUAGE_NONE][] = $a_file_array;
+      // Extra resources on a line by themselves.
+      $item['resources'][] = array('title' =>  trim($data[4]), 'url' => trim($data[5]));
     }
   }
   fclose($fp);
+
+  // Process the array of items into nodes.
+  foreach ($items as $item) {
+    $node = new stdClass();
+    $node->field_equipment_type[LANGUAGE_NONE][] = array('value' => $item['type']);
+    $node->title = $item['title'];
+    $node->body[LANGUAGE_NONE][] = array('value' => $item['description']);
+    $node->field_equipment_manual[LANGUAGE_NONE][] = array('url' => $item['manual']);
+
+    // Image - fetch, save attach.
+    $node->field_equipment_image[LANGUAGE_NONE][] = drush_scrape_get_file($item['image']);
+
+    // Resources.
+    foreach ($item['resources'] as $resource) {
+      $node->field_equipment_resources[LANGUAGE_NONE][] = array('url' => $resource['url'], 'title' => $resource['title']);
+    }
+
+    node_save($node);
+  }
 }
 
 function _drush_scrape_deindex($text) {
