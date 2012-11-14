@@ -43,6 +43,32 @@ function scrape_drush_command() {
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
 
+	// Warning: delete all node of same type
+	$items['delete_nodes'] = array( 
+		'callback' => 'drush_delete_nodes',
+    'description' => dt('Warning: delete all node of same type'),
+    'arguments' => array(
+      'node_type' => dt('Node type'),
+    ),
+    'examples' => array(
+      'simple' => dt('drush delete_nodes award'),
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+	);
+
+	// Import award in filemaker to drupal node
+	$items['import_prize'] = array(
+		'callback' => 'drush_import_prize',
+    'description' => dt('Import a well-formatted equipment CSV to award nodes.'),
+    'arguments' => array(
+      'input' => dt('File containing a list of prizes.'),
+    ),
+    'examples' => array(
+      'simple' => dt('drush import_prize /full_path/filename.csv'),
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+	);
+	
   return $items;
 }
 
@@ -326,6 +352,122 @@ READ:
   }
   fclose($fp);
 }
+
+
+function drush_import_prize($input = '') 
+{
+	if(empty($input)) 
+	{
+    drush_set_error('NO_FILE', dt('I require a CSV file with a list of columns.'));
+    return 1;
+  }
+  
+  if(!file_exists($input)) 
+  {
+    drush_set_error('NO_FILE', dt('List file "@file" does not exist.', array('@file'=> $input)));
+    return 1;
+  }
+
+  $fp = fopen($input, 'r');
+  if(!$fp) 
+  {
+    drush_set_error('FILE_PERM', dt('Cannot open file @file.', array('@file'=> $input)));
+  }
+
+	// Variables
+	$node_type = "award";
+	$line_size = 2048;
+
+	while(!feof($fp))
+	{
+		$data = fgetcsv($fp, $line_size);
+	
+		$title = utf8_encode($data[0]);
+		$background = utf8_encode($data[1]);
+	
+		$replacement = array(
+			"" => "<br/>",
+			"" => "'",
+			"" => "'",
+			"" => "'",
+			"" => "'", 
+			"" => "-"
+		);
+		$background = strtr($background, $replacement);
+		
+	
+		// No data, skip.
+    if(!count($data))
+      continue;
+	
+		// If title is empty, skip
+		if(empty($title))
+			continue;
+
+		$node = new stdClass();
+    $node->type = $node_type;
+    $node->nid = NULL;
+    $node->uid = 1;
+    $node->title = $title;
+    $node->language = LANGUAGE_NONE;
+    $node->body[$node->language] = array(0 => array('format'=> 'full_html', 'value' => $background));
+
+    node_save($node);
+
+		/*
+    drush_print(
+    	dt('title: @title | node_id: @nid', 
+    		array(
+      		'@title' => $title,
+      		'@nid' => $node->nid
+    		)
+    	)
+    );
+    */
+    drush_print(
+    	dt('node_id: @nid | text: @text', 
+    		array(
+      		'@nid' => $node->nid,
+      		'@text' => $background
+    		)
+    	)
+    );
+    
+	}
+	// End while loop
+	
+	fclose($fp);
+}
+
+
+function drush_delete_nodes($node_type = '')
+{
+	if(empty($node_type)) 
+	{
+    drush_set_error('NO_ARGUMENT', dt('I require node_type'));
+    return 1;
+  }
+
+	
+	// Select the nodes that we want to delete.
+	$result = db_select('node', 'n')
+		->fields('n', array('nid'))
+		->condition('type', $node_type, '=')
+		->execute();
+
+	$deleted_count = 0;
+	foreach($result as $record) 
+	{
+		node_delete($record->nid);
+		$deleted_count++;
+	}
+
+	// Simple debug message so we can see what had been deleted.
+	drush_print( 
+		dt("node_type: $node_type | $deleted_count nodes have been deleted") 
+	);
+}
+
 
 function _drush_scrape_deindex($text) {
   return strtr($text, array('/index.html' => ''));
