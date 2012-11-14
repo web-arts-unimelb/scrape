@@ -26,6 +26,7 @@ function scrape_drush_command() {
       'simple' =>  dt('drush scape filename.txt'),
       'with url' => dt('drush scape --url=http://ltrc.unimelb.edu.au filename.txt'),
       'complex' => dt('drush scape --source-url=http://ltrc.unimelb.edu.au --source-title=title --source-content=div[id=content] --target-node=page --target-files=field_attachment --target-images=field_image filename.txt'),
+      'source csv columns' => dt('OldPath,NewPath,OldTitle,NewTitle'),
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
@@ -126,8 +127,38 @@ function drush_scrape($list = '') {
     if (empty($uri))
       continue;
 
+    // Skip .php files.
+    $parts = pathinfo($uri);
+    if ($parts['extension'] == 'php') {
+      continue;
+    }
+
+    // The source file can have a few more fields, which control a
+    // search & replace of the title and the new URL.
+    if (!empty($data[1])) {
+      $new_path = trim($data[1]);
+    }
+    else {
+      $new_path = '';
+    }
+    if (!empty($data[2])) {
+      $old_title = trim($data[2]);
+    }
+    else {
+      $old_title = '';
+    }
+    if (!empty($data[3])) {
+      $new_title = trim($data[3]);
+    }
+    else {
+      $new_title = '';
+    }
+
     if (!empty($source_url)) {
       $url = $source_url . $uri;
+    }
+    else {
+      $url = $uri;
     }
 
     // Grab etc.
@@ -137,8 +168,36 @@ function drush_scrape($list = '') {
 
     $uri = parse_url($url);
 
-    $page_title = trim($page->find($title, 0)->plaintext);
+    $page_title = empty($new_title) ? trim($page->find($title, 0)->plaintext) : $new_title;
+    $content_title = trim($page->find($content. ' h2', 0)->plaintext);
     $page_body = trim($page->find($content, 0));
+
+    // Remove all HTML comments from the body.
+    $page_body = preg_replace('/<!--(.*)-->/Uis', '', $page_body);
+
+    // Remove all superfluous spacing. Though it seems like a silly thing
+    // to do, this will help with search & replace later on.
+    $page_body = str_replace(array("\r\n", "\r"), "\n", $page_body);
+    $lines = explode("\n", trim($page_body));
+    $nlines = array();
+
+    foreach ($lines as $line) {
+      if(!empty($line)) {
+        $nlines[] = trim($line);
+      }
+    }
+    $page_body = implode($nlines);
+
+    // Clean up.
+    unset($lines);
+    unset($nlines);
+
+    if (empty($page_body)) {
+      drush_print(dt('No page content for @url', array('@url' => $url)));
+      $page->clear();
+      continue;
+    }
+
     $replacements = drush_scrape_get_links($url, $page, $content);
     $page_files = drush_scrape_get_files($url, $page, $content);
     $page_images = drush_scrape_get_images($url, $page, $content);
@@ -161,8 +220,29 @@ function drush_scrape($list = '') {
       $images[] = $image;
     }
 
-    // Replace all the things!
+    // Pull the in-content h2 page title from the page.
+    $replacements['<h2>' . $old_title . '</h2>'] = '';
+    $replacements['<H2>' . $old_title . '</H2>'] = '';
+
+    // Pull the in-content h2 page title from the page.
+    $replacements['<h2>' . $page_title . '</h2>'] = '';
+    $replacements['<H2>' . $page_title . '</H2>'] = '';
+
+    // Pull the first in-content h2 page title from the page regardless.
+    $replacements['<h2>' . $content_title . '</h2>'] = '';
+    $replacements['<H2>' . $content_title . '</H2>'] = '';
+
+    // Replace ALL THE THINGS!
     $page_body = strtr($page_body, $replacements);
+
+    // New path?
+    if (empty($new_path)) {
+      $path = _drush_scrape_deindex(substr($uri['path'], 1));
+    }
+    else {
+      $path = substr($new_path, 1);
+    }
+    $path = rtrim($path, '/');
 
     $node = new stdClass();
     $node->type = $target_node;
@@ -171,7 +251,7 @@ function drush_scrape($list = '') {
     $node->title = check_plain($page_title);
     $node->language = LANGUAGE_NONE;
     $node->body[$node->language] = array(0 => array('format'=> 'full_html', 'value' => $page_body));
-    $node->path = array('alias' => _drush_scrape_deindex(substr($uri['path'], 1)));
+    $node->path = array('alias' => $path);
     $node->{$target_files}[$node->language] = $files;
     $node->{$target_images}[$node->language] = $images;
 
@@ -185,6 +265,9 @@ function drush_scrape($list = '') {
     ));
 
     $page->clear();
+
+    // Do not spam the source server to death.
+    sleep(1);
   }
   fclose($fp);
 }
@@ -309,13 +392,10 @@ function drush_equipment_import($list = '') {
     drush_set_error('FILE_PERM', dt('Cannot open file @file.', array('@file'=> $list)));
   }
 
-  $pos = 0;
+  $items = array();
 
   while (!feof($fp)) {
-READ:
-    fseek($fp, $pos, SEEK_SET);
     $data = fgetcsv($fp, 2048);
-    $pos = ftell();
 
     // No data, skip.
     if (!count($data))
@@ -325,32 +405,48 @@ READ:
     if ($data[0] == 'Type')
       continue;
 
-    if (empty($data[0])) {
-
-      // This is a new resource to be added to the previous item.
-      for(;;) {
-        // Get position.
-        $pos = ftell();
-        $resource = fgetcsv($fp, 2048);
-        if (!empty($resource[0])) {
-          goto READ;
-        }
-        else {
-
-        }
+    if (!empty($data[0])) {
+      // New item, shunt the old one onto the array processed items.
+      if (!empty($item)) {
+        $items[] = $item;
       }
+
+      $item = array();
+      $item['images'] = array();
+      $item['resources'] = array();
+
+      $item['type'] = trim($data[0]);
+      $item['title'] = trim($data[1]);
+      $item['description'] = trim($data[2]);
+      $item['manual'] =  trim($data[3]);
+      $item['image'] = trim($data[4]);
+      $item['resources'][] = array('title' =>  trim($data[4]), 'url' => trim($data[5]));
     }
     else {
-      $node = stdClass();
-      $node->field_equipment_type[LANGUAGE_NONE][] = array('value' => trim($data[0]));
-      $node->title = trim($data[1]);
-      $node->body[LANGUAGE_NONE][] = array('value' => trim($data[2]));
-      $node->field_equipment_manual[LANGUAGE_NONE][] = array('url' => trim($data[2]));
-      // Image - fetch, save attach.
-      $node->field_equipment_image[LANGUAGE_NONE][] = $a_file_array;
+      // Extra resources on a line by themselves.
+      $item['resources'][] = array('title' =>  trim($data[4]), 'url' => trim($data[5]));
     }
   }
   fclose($fp);
+
+  // Process the array of items into nodes.
+  foreach ($items as $item) {
+    $node = new stdClass();
+    $node->field_equipment_type[LANGUAGE_NONE][] = array('value' => $item['type']);
+    $node->title = $item['title'];
+    $node->body[LANGUAGE_NONE][] = array('value' => $item['description']);
+    $node->field_equipment_manual[LANGUAGE_NONE][] = array('url' => $item['manual']);
+
+    // Image - fetch, save attach.
+    $node->field_equipment_image[LANGUAGE_NONE][] = drush_scrape_get_file($item['image']);
+
+    // Resources.
+    foreach ($item['resources'] as $resource) {
+      $node->field_equipment_resources[LANGUAGE_NONE][] = array('url' => $resource['url'], 'title' => $resource['title']);
+    }
+
+    node_save($node);
+  }
 }
 
 
