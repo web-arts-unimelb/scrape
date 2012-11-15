@@ -633,10 +633,20 @@ function drush_scrape_slurp($url = '') {
     }
 
     // Return only the path component.
-    $links[$link->href] = _drush_scrape_deindex($temp['path']);
+    $links[$temp['path']] = array(
+      'old' => $temp['path'],
+      'new' => _drush_scrape_deindex($temp['path']),
+      'title' => trim($link->plaintext),
+    );
   }
 
   foreach ($links as $link) {
-    drush_print(dt('@link', array('@link' => $link)));
+    drush_print(dt('@old,@new,"!title"',
+      array(
+        '@old' => $link['old'],
+        '@new' => $link['new'],
+        '!title' => $link['title']
+      )
+    ));
   }
 }
