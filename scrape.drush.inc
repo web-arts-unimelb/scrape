@@ -68,8 +68,24 @@ function scrape_drush_command() {
       'simple' => dt('drush import_prize /full_path/filename.csv'),
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
-	);
-	
+  );
+
+  $items['link-slurp'] = array(
+    'callback' => 'drush_scrape_slurp',
+    'description' => dt('Slurp links from a web page.'),
+    'arguments' => array(
+      'url' => dt('URL to the page from which to slurp the links.'),
+    ),
+    'options' => array(
+      'element' => dt('Element that encluses the links to slurp. Eg: a navigation menu div.'),
+      'path-only' => dt('Return only the path, stripping the protocol and hostname.'),
+    ),
+    'examples' => array(
+      'simple' =>  dt('drush link-slurp --element="div[id=menu]" http://www.google.com/'),
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+  );
+
   return $items;
 }
 
@@ -579,4 +595,48 @@ function drush_scrape_get_links($url, $page, $content) {
     }
   }
   return $links;
+}
+
+/**
+ * Command callback.
+ */
+function drush_scrape_slurp($url = '') {
+  if (empty($url)) {
+    drush_set_error('NO_URL', dt('I require a URL as argument.'));
+    return 1;
+  }
+
+  $uri = parse_url($url);
+  $element   = trim(drush_get_option('element'));
+  if (!empty($element)) {
+    $element .= ' ';
+  }
+  $path_only = drush_get_option('path-only');
+
+  // drush_print(dt('Element: %element', array('%element' => $element)));
+  // drush_print(dt('URI: @array', array('@array' => print_r($uri, TRUE))));
+
+  require_once('simple_html_dom.inc');
+
+  // Grab etc.
+  $page = file_get_html($url);
+  if (empty($page)) {
+    drush_set_error('NO_CONTENT', dt('The url @url returned no content.', array('@url' => $url)));
+    return 1;
+  }
+
+  foreach ($page->find($element . 'a') as $link) {
+    // Check if these links point at the same server. Ignore if not.
+    $temp = parse_url($link->href);
+    if ($temp['host'] != $uri['host']) {
+      continue;
+    }
+
+    // Return only the path component.
+    $links[$link->href] = _drush_scrape_deindex($temp['path']);
+  }
+
+  foreach ($links as $link) {
+    drush_print(dt('@link', array('@link' => $link)));
+  }
 }
