@@ -70,6 +70,20 @@ function scrape_drush_command() {
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
 
+	// Import award in spreadsheet to drupal node
+	$items['import_award'] = array(
+		'callback' => 'drush_import_award',
+    'description' => dt('Import a well-formatted equipment CSV to award nodes.'),
+    'arguments' => array(
+      'input' => dt('File containing a list of wards'),
+    ),
+    'examples' => array(
+      'simple' => dt('drush import_prize /full_path/filename.xlsx'),
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+  );
+	
+
   $items['link-slurp'] = array(
     'callback' => 'drush_scrape_slurp',
     'description' => dt('Slurp links from a web page.'),
@@ -552,6 +566,85 @@ function drush_import_prize($input = '')
 }
 
 
+function drush_import_award($input = "")
+{
+	// Runtime start
+	$runtime_start = getrusage();
+
+	if(empty($input)) 
+	{
+    drush_set_error('NO_FILE', dt('I require a CSV file with a list of columns.'));
+    return 1;
+  }
+  
+  if(!file_exists($input)) 
+  {
+    drush_set_error('NO_FILE', dt('List file "@file" does not exist.', array('@file'=> $input)));
+    return 1;
+  }
+	
+	$phpexcel_path = "lib/phpexcel/Classes";
+	require_once $phpexcel_path. "/PHPExcel/IOFactory.php";
+	
+	// Smaller cell size
+	$cacheMethod = PHPExcel_CachedObjectStorageFactory::cache_in_memory;
+	PHPExcel_Settings::setCacheStorageMethod($cacheMethod);
+	
+	$input_file_path = $input;
+	$input_file_type = PHPExcel_IOFactory::identify($input_file_path);
+	
+	$reader = PHPExcel_IOFactory::createReader($input_file_type);
+	$excel_obj = $reader->load($input_file_path);
+	
+	$excel_obj->setActiveSheetIndex(0);
+	$worksheet_obj = $excel_obj->getActiveSheet();
+	
+	$highest_column = 29;
+	$highest_row = 223;
+	
+	$worksheet_obj->getDefaultColumnDimension()->setWidth($highest_column);
+	$worksheet_obj->getDefaultRowDimension()->setRowHeight($highest_row);
+	
+	for($row = 1; $row <= $highest_row; ++$row) 
+	{
+		if($row <= 2)
+			continue;
+	
+		// Selection
+		$col = 1;
+		$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
+		$selection = $cell->getValue();
+		if(empty($selection))
+			continue;
+	
+		// Trust
+		$col = 2;
+		$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
+		
+		$trust = $cell->getValue();
+		if($cell->hasHyperlink())
+		{
+			$link = $cell->getHyperlink()->getUrl();
+		}
+		else
+		{
+			$link = null;
+		}
+		
+		echo "selection: $selection | trust: $trust | link: $link\n";
+	}
+	
+	
+	// Report
+	$runtime_end = getrusage();
+	$utime = _output_runtime($runtime_end, $runtime_start, "utime");
+	$stime = _output_runtime($runtime_end, $runtime_start, "stime");
+	
+	echo "This process used ". $utime. " ms for its computations\n";
+	echo "It spent ". $stime. " ms in system calls\n";
+}
+
+
 function drush_delete_nodes($node_type = '')
 {
 	if(empty($node_type)) 
@@ -649,4 +742,11 @@ function drush_scrape_slurp($url = '') {
       )
     ));
   }
+}
+
+
+function _output_runtime($ru, $rus, $index)
+{
+	return ($ru["ru_$index.tv_sec"]*1000 + intval($ru["ru_$index.tv_usec"]/1000)) - 
+		($rus["ru_$index.tv_sec"]*1000 + intval($rus["ru_$index.tv_usec"]/1000));
 }
