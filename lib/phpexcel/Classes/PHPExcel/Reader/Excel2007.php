@@ -1354,7 +1354,11 @@ class PHPExcel_Reader_Excel2007 implements PHPExcel_Reader_IReader
 												$cell->getHyperlink()->setUrl( $hyperlinks[ (string)$linkRel['id'] ] );
 											}
 											if (isset($hyperlink['location'])) {
-												$cell->getHyperlink()->setUrl( 'sheet://' . (string)$hyperlink['location'] );
+												// Gary
+												// Handle cell url == www.test.com/index.html#4, but this cannot handle internal referenced sheet. i.e. sheet://4
+												// Original: $cell->getHyperlink()->setUrl( 'sheet://' . (string)$hyperlink['location'] );
+												$url = $hyperlinks[ (string)$linkRel['id'] ]. "#". (string)$hyperlink['location'];
+												$cell->getHyperlink()->setUrl($url);
 											}
 
 											// Tooltip
