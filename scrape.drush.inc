@@ -57,19 +57,6 @@ function scrape_drush_command() {
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
 	);
 
-	// Import award in filemaker to drupal node
-	$items['import_prize'] = array(
-		'callback' => 'drush_import_prize',
-    'description' => dt('Import a well-formatted equipment CSV to award nodes.'),
-    'arguments' => array(
-      'input' => dt('File containing a list of prizes.'),
-    ),
-    'examples' => array(
-      'simple' => dt('drush import_prize /full_path/filename.csv'),
-    ),
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
-  );
-
 	// Import award in spreadsheet to drupal node
 	$items['import_award'] = array(
 		'callback' => 'drush_import_award',
@@ -82,7 +69,6 @@ function scrape_drush_command() {
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
-	
 
   $items['link-slurp'] = array(
     'callback' => 'drush_scrape_slurp',
@@ -479,93 +465,6 @@ function drush_equipment_import($list = '') {
   }
 }
 
-
-function drush_import_prize($input = '') 
-{
-	if(empty($input)) 
-	{
-    drush_set_error('NO_FILE', dt('I require a CSV file with a list of columns.'));
-    return 1;
-  }
-  
-  if(!file_exists($input)) 
-  {
-    drush_set_error('NO_FILE', dt('List file "@file" does not exist.', array('@file'=> $input)));
-    return 1;
-  }
-
-  $fp = fopen($input, 'r');
-  if(!$fp) 
-  {
-    drush_set_error('FILE_PERM', dt('Cannot open file @file.', array('@file'=> $input)));
-  }
-
-	// Variables
-	$node_type = "award";
-	$line_size = 2048;
-
-	while(!feof($fp))
-	{
-		$data = fgetcsv($fp, $line_size);
-	
-		$title = utf8_encode($data[0]);
-		$background = utf8_encode($data[1]);
-	
-		$replacement = array(
-			"" => "<br/>",
-			"" => "'",
-			"" => "'",
-			"" => "'",
-			"" => "'", 
-			"" => "-"
-		);
-		$background = strtr($background, $replacement);
-		
-	
-		// No data, skip.
-    if(!count($data))
-      continue;
-	
-		// If title is empty, skip
-		if(empty($title))
-			continue;
-
-		$node = new stdClass();
-    $node->type = $node_type;
-    $node->nid = NULL;
-    $node->uid = 1;
-    $node->title = $title;
-    $node->language = LANGUAGE_NONE;
-    $node->body[$node->language] = array(0 => array('format'=> 'full_html', 'value' => $background));
-
-    node_save($node);
-
-		/*
-    drush_print(
-    	dt('title: @title | node_id: @nid', 
-    		array(
-      		'@title' => $title,
-      		'@nid' => $node->nid
-    		)
-    	)
-    );
-    */
-    drush_print(
-    	dt('node_id: @nid | text: @text', 
-    		array(
-      		'@nid' => $node->nid,
-      		'@text' => $background
-    		)
-    	)
-    );
-    
-	}
-	// End while loop
-	
-	fclose($fp);
-}
-
-
 function drush_import_award($input = "")
 {
 	// Runtime start
@@ -600,38 +499,128 @@ function drush_import_award($input = "")
 	$worksheet_obj = $excel_obj->getActiveSheet();
 	
 	$highest_column = 29;
-	$highest_row = 223;
-	
-	$worksheet_obj->getDefaultColumnDimension()->setWidth($highest_column);
-	$worksheet_obj->getDefaultRowDimension()->setRowHeight($highest_row);
+	$highest_row = 228;
+	$row_to_skip = 222;
 	
 	for($row = 1; $row <= $highest_row; ++$row) 
 	{
-		if($row <= 2)
+		if($row <= $row_to_skip)
 			continue;
 	
 		// Selection
-		$col = 1;
-		$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
-		$selection = $cell->getValue();
+		$col = "B";
+		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
+		$selection = $output_array["value"];
 		if(empty($selection))
 			continue;
 	
 		// Trust
-		$col = 2;
-		$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
+		$col = "C";
+		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
+		$trust = $output_array["value"];
+		$trust_link = $output_array["link"];
 		
-		$trust = $cell->getValue();
-		if($cell->hasHyperlink())
-		{
-			$link = $cell->getHyperlink()->getUrl();
-		}
-		else
-		{
-			$link = null;
+		// Skip non-trust
+		
+		// Award name
+		$col = "E";
+		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
+		$award_name = $output_array["value"];
+		$award_name_link = $output_array["link"];
+		
+		// Award type
+		$col = "F";
+		$col_range = 3;
+		$award_type_array = _award_get_multiple_cell_values($worksheet_obj, $col, $col_range, $row);
+		
+		// Skip Faculty level
+		
+		// Finanicial need
+		$col = "O";
+		$finanicial_need = _award_get_cell_value_bicondition($worksheet_obj, $col, $row);
+
+		// Study level
+		$col = "P";
+		$col_range = 6;
+		$study_level_array = _award_get_multiple_cell_values($worksheet_obj, $col, $col_range, $row);
+		
+		// Citizenship
+		$col = "V";
+		$col_range = 4;
+		$citizenship_array = _award_get_multiple_cell_values($worksheet_obj, $col, $col_range, $row);
+		$citizenship_array = _flatten_array($citizenship_array);
+		
+		// Travel support
+		$col = "Z";
+		$travel_support = _award_get_cell_value_bicondition($worksheet_obj, $col, $row);
+		
+		// Term
+		$col = "AA";
+		$term = _award_get_numeric_cell_value($worksheet_obj, $col, $row);
+		
+		// Approximate value
+		$col = "AB";
+		$award_value = _award_get_numeric_cell_value($worksheet_obj, $col, $row);
+		
+		// Area of study
+		$col = "AC";
+		$study_area_array = _award_get_study_area_table_ids($worksheet_obj, $col, $row);
+		
+		
+		// Save node
+		$node = new stdClass();
+    $node->type = "award";
+    $node->nid = NULL;
+    $node->uid = 1;
+    $node->language = LANGUAGE_NONE;
+    
+    $node->title = $award_name;
+    
+    // Background
+    if($award_name_link != null)
+    {
+    	$body_text = l($award_name, $award_name_link);
+    }
+    else
+    {
+    	$body_text = "";
+    }
+    
+    $node->body[$node->language][] = array("format" => "full_html", "value" => $body_text);
+    
+    
+    $node->field_award_uni_trust_record[$node->language][] = array("title" => $trust, "url" => $trust_link);
+    $node->field_award_financial_need[$node->language][] = array("value" => $finanicial_need);
+    $node->field_award_travel_support[$node->language][] = array("value" => $travel_support);
+    $node->field_award_term[$node->language][] = array("value" => $term);
+    $node->field_award_value[$node->language][] = array("value" => $award_value);
+    
+    // Award type
+    foreach($award_type_array as $award_type)
+    {
+    	$node->field_award_type[$node->language][] = array("value" => $award_type);
 		}
 		
-		echo "selection: $selection | trust: $trust | link: $link\n";
+    // Study level
+    foreach($study_level_array as $study_level)
+    {
+    	$node->field_award_study_level[$node->language][] = array("value" => $study_level);
+		}
+		
+		// Citizenship
+    foreach($citizenship_array as $citizenship)
+    {
+    	$node->field_award_citizenship[$node->language][] = array("value" => $citizenship);
+		}
+		
+		// Area of study
+		foreach($study_area_array as $study_area_id)
+    {
+    	$node->field_award_study_area[$node->language][] = array("tid" => $study_area_id);
+		}
+
+		
+		node_save($node);
 	}
 	
 	
@@ -640,8 +629,16 @@ function drush_import_award($input = "")
 	$utime = _output_runtime($runtime_end, $runtime_start, "utime");
 	$stime = _output_runtime($runtime_end, $runtime_start, "stime");
 	
-	echo "This process used ". $utime. " ms for its computations\n";
-	echo "It spent ". $stime. " ms in system calls\n";
+	
+	
+	
+	$report = "
+		column: $highest_column, row: $highest_row\n
+		This process used ". $utime. " ms for its computations\n
+		It spent ". $stime. " ms in system calls\n
+	";
+
+	echo dt($report);
 }
 
 
@@ -745,8 +742,250 @@ function drush_scrape_slurp($url = '') {
 }
 
 
+function _award_get_multiple_cell_values(&$worksheet_obj, $initial_col_string, $col_range, $row)
+{
+	$return_array = array();
+	
+	$col = PHPExcel_Cell::columnIndexFromString($initial_col_string) - 1;
+	for($i=0; $i < $col_range; $i++) 
+	{
+		$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
+		$cell_value = $cell->getValue();
+		
+		if(!empty($cell_value))
+		{
+			$curr_col_string = PHPExcel_Cell::stringFromColumnIndex($col);
+			$return_array[] = _award_interpret_spreadsheet_column($curr_col_string);
+		}
+		else
+		{
+			// Skip
+		}
+		
+		++$col;
+	}
+	
+	return $return_array;
+}
+
+function _award_get_cell_value_bicondition(&$worksheet_obj, $col_string, $row)
+{
+	$return = "";
+
+	$col = PHPExcel_Cell::columnIndexFromString($col_string) - 1;
+	$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
+	$value = $cell->getValue();
+
+	if(empty($value))
+	{
+		$return = "no";
+	}
+	else
+	{
+		$return = "yes";
+	}
+	
+	return $return;
+}
+
+
+function _award_interpret_spreadsheet_column($col)
+{
+	$return = null;
+
+	if(0)
+	{
+	
+	}
+	elseif($col == "F")
+	{
+		$return = "scholarship";
+	}
+	elseif($col == "G")
+	{
+		$return = "prize";
+	}
+	elseif($col == "H")
+	{
+		$return = "grant";
+	}
+	elseif($col == "P")
+	{
+		$return = "undergraduate";
+	}
+	elseif($col == "Q")
+	{
+		$return = "honours";
+	}
+	elseif($col == "R")
+	{
+		$return = "graduate";
+	}
+	elseif($col == "S")
+	{
+		$return = "postgraduate";
+	}
+	elseif($col == "T")
+	{
+		$return = "RHD";
+	}
+	elseif($col == "U")
+	{
+		$return = "fellowship";
+	}
+	elseif($col == "V")
+	{
+		$return = array("au", "nz");
+	}
+	elseif($col == "W")
+	{
+		$return = array("au", "nz", "int");
+	}
+	elseif($col == "X")
+	{
+		$return = array("au");
+	}
+	elseif($col == "Y")
+	{
+		$return = array("int");
+	}
+	
+	
+	return $return;
+}
+
+function _award_get_cell_value(&$worksheet_obj, $col_string, $row)
+{
+	$return = null;
+
+	// See legacy code of phpexcel e.g. B == 2
+	$col = PHPExcel_Cell::columnIndexFromString($col_string) - 1;
+	$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
+	$value = $cell->getValue();
+	if($cell->hasHyperlink())
+	{
+		$link = $cell->getHyperlink()->getUrl();
+	}
+	else
+	{
+		$link = null;
+	}	
+
+	$return = array(
+		"value" => $value,
+		"link" => $link
+	);
+
+	return $return;
+}
+
+function _award_get_numeric_cell_value($worksheet_obj, $col_string, $row)
+{
+	$return = null;
+
+	$col = PHPExcel_Cell::columnIndexFromString($col_string) - 1;
+	$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
+	$value = $cell->getValue();
+	if(is_numeric($value))
+	{
+		$return = $value;
+	}
+	else
+	{
+		$return = 0;
+	}
+	
+	return $return;
+}
+
+function _award_get_study_area_table_ids(&$worksheet_obj, $col_string, $row)
+{
+	$return_array = array();
+
+	$study_area_in_cell = _award_get_study_area_in_cell($worksheet_obj, $col_string, $row);
+	$study_area = _award_get_study_area_array();	
+
+	if(count($study_area_in_cell) > 0)
+	{
+		foreach($study_area_in_cell as $study_area_needle)
+		{
+			if( ($key = array_search($study_area_needle, $study_area)) !== FALSE )
+			{
+				$return_array[] = $key;
+			}
+			else
+			{
+				
+			}
+		}
+	}
+	else
+	{
+	
+	}
+	
+	return $return_array;
+}
+
+// Values in a cell looks like: 
+// Asia Institute|Asian studies|Culture and Communication|Art history
+function _award_get_study_area_in_cell(&$worksheet_obj, $col_string, $row)
+{
+	$return = null;
+
+	$col = PHPExcel_Cell::columnIndexFromString($col_string) - 1;
+	$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
+	$value = $cell->getValue();
+
+	$return = explode("|", $value);
+	return $return;
+}
+
+function _award_get_study_area_array()
+{
+	$return_array = array();
+
+	$query = db_select("taxonomy_term_data", "term");
+	$query->join("taxonomy_vocabulary", "voca", "term.vid = voca.vid");
+	$result = $query
+  	->fields("term", array("tid", "name"))
+  	->condition("voca.machine_name", "study_area")
+  	->orderBy("tid", 'ASC')
+  	->execute();
+
+	foreach($result as $data)
+	{
+		$return_array[$data->tid] = $data->name; 
+	}
+	
+	return $return_array;
+}
+
 function _output_runtime($ru, $rus, $index)
 {
 	return ($ru["ru_$index.tv_sec"]*1000 + intval($ru["ru_$index.tv_usec"]/1000)) - 
 		($rus["ru_$index.tv_sec"]*1000 + intval($rus["ru_$index.tv_usec"]/1000));
 }
+
+function _flatten_array($array) 
+{ 
+  if(!is_array($array)) 
+  { 
+    return FALSE; 
+  } 
+  
+  $result = array(); 
+  foreach($array as $key => $value) 
+  { 
+    if(is_array($value)) 
+    { 
+    	// If the input arrays have the same string keys, then the later value for that key will overwrite the previous one. If, however, the arrays contain numeric keys, the later value will not overwrite the original value, but will be appended.
+      $result = array_merge($result, _flatten_array($value)); 
+    } 
+    else 
+    { 
+      $result[$key] = $value; 
+    } 
+  } 
+  return $result; 
+} 
