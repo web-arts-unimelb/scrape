@@ -498,8 +498,8 @@ function drush_import_award($input = "")
 	$excel_obj->setActiveSheetIndex(0);
 	$worksheet_obj = $excel_obj->getActiveSheet();
 	
-	$highest_column = 29;
-	$highest_row = 228;
+	$highest_column = $worksheet_obj->getHighestColumn(); // e.g. it outputs AMK
+	$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
 	$row_to_skip = 222;
 	
 	for($row = 1; $row <= $highest_row; ++$row) 
@@ -508,15 +508,15 @@ function drush_import_award($input = "")
 			continue;
 	
 		// Selection
-		$col = "B";
-		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
+		$col_string = "B";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$selection = $output_array["value"];
 		if(empty($selection))
 			continue;
 	
 		// Trust
-		$col = "C";
-		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
+		$col_string = "C";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$trust = $output_array["value"];
 		$trust_link = $output_array["link"];
 		
@@ -529,42 +529,90 @@ function drush_import_award($input = "")
 		$award_name_link = $output_array["link"];
 		
 		// Award type
-		$col = "F";
+		$col_string = "F";
 		$col_range = 3;
-		$award_type_array = _award_get_multiple_cell_values($worksheet_obj, $col, $col_range, $row);
+		$award_type_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
 		
 		// Skip Faculty level
 		
 		// Finanicial need
-		$col = "O";
-		$finanicial_need = _award_get_cell_value_bicondition($worksheet_obj, $col, $row);
+		$col_string = "O";
+		$finanicial_need = _award_get_cell_value_bicondition($worksheet_obj, $col_string, $row);
 
 		// Study level
-		$col = "P";
+		$col_string = "P";
 		$col_range = 6;
-		$study_level_array = _award_get_multiple_cell_values($worksheet_obj, $col, $col_range, $row);
+		$study_level_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
 		
 		// Citizenship
-		$col = "V";
+		$col_string = "V";
 		$col_range = 4;
-		$citizenship_array = _award_get_multiple_cell_values($worksheet_obj, $col, $col_range, $row);
+		$citizenship_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
 		$citizenship_array = _flatten_array($citizenship_array);
 		
 		// Travel support
-		$col = "Z";
-		$travel_support = _award_get_cell_value_bicondition($worksheet_obj, $col, $row);
+		$col_string = "Z";
+		$travel_support = _award_get_cell_value_bicondition($worksheet_obj, $col_string, $row);
 		
 		// Term
-		$col = "AA";
-		$term = _award_get_numeric_cell_value($worksheet_obj, $col, $row);
+		$col_string = "AA";
+		$term = _award_get_numeric_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Approximate value
-		$col = "AB";
-		$award_value = _award_get_numeric_cell_value($worksheet_obj, $col, $row);
+		$col_string = "AB";
+		$award_value = _award_get_numeric_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Area of study
-		$col = "AC";
-		$study_area_array = _award_get_study_area_table_ids($worksheet_obj, $col, $row);
+		$col_string = "AC";
+		$study_area_array = _award_get_study_area_table_ids($worksheet_obj, $col_string, $row);
+		
+		// Background
+		$col_string = "AD";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
+		$background = $output_array["value"];
+		
+		// Application process
+		$col_string = "AE";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
+		$application_process = $output_array["value"];
+		
+		// Application process
+		$col_string = "AF";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
+		$conditions = $output_array["value"];
+		
+		// Students (i.e. student type)
+		$col_string = "AG";
+		$col_range = 3;
+		$student_type_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
+		
+		// Other
+		$col_string = "AJ";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
+		$other = $output_array["value"];
+		
+		// Apply link
+		$col_string = "AK";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
+		$apply_link = $output_array["value"];
+		
+		// Enquiry now email
+		$col_string = "AL";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
+		$enquiry_email = $output_array["value"];
+		
+		// Open day
+		$col_string = "AM";
+		$open_day = _award_get_date_in_cell($worksheet_obj, $col_string, $row);
+		
+		// Close day
+		$col_string = "AN";
+		$close_day = _award_get_date_in_cell($worksheet_obj, $col_string, $row);
+		
+		// Frequency
+		$col_string = "AO";
+		$col_range = 4;
+		$frequency_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
 		
 		
 		// Save node
@@ -572,28 +620,32 @@ function drush_import_award($input = "")
     $node->type = "award";
     $node->nid = NULL;
     $node->uid = 1;
-    $node->language = LANGUAGE_NONE;
     
+    $node->language = LANGUAGE_NONE;
     $node->title = $award_name;
     
     // Background
     if($award_name_link != null)
     {
-    	$body_text = l($award_name, $award_name_link);
+    	$background = l($award_name, $award_name_link). "<br/><br/>". $background;
     }
-    else
-    {
-    	$body_text = "";
-    }
+    $node->body[$node->language][] = array("format" => "full_html", "value" => $background);
     
-    $node->body[$node->language][] = array("format" => "full_html", "value" => $body_text);
-    
+    $node->field_award_application_process[$node->language][] = array("format" => "full_html", "value" => $application_process);
+		$node->field_award_conditions[$node->language][] = array("format" => "full_html", "value" => $conditions);
     
     $node->field_award_uni_trust_record[$node->language][] = array("title" => $trust, "url" => $trust_link);
     $node->field_award_financial_need[$node->language][] = array("value" => $finanicial_need);
     $node->field_award_travel_support[$node->language][] = array("value" => $travel_support);
-    $node->field_award_term[$node->language][] = array("value" => $term);
+    $node->field_award_term[$node->language][] = array("value" => $term);    
+    
     $node->field_award_value[$node->language][] = array("value" => $award_value);
+		$node->field_award_other[$node->language][] = array("format" => "plain_text", "value" => $other);
+    $node->field_award_submissions[$node->language][] = array("url" => $apply_link);
+    $node->field_award_enquire_now[$node->language][] = array("email" => $enquiry_email);
+    
+    $node->field_award_application_date[$node->language][] = array("value" => $open_day, "value2" => $close_day);
+    
     
     // Award type
     foreach($award_type_array as $award_type)
@@ -619,8 +671,22 @@ function drush_import_award($input = "")
     	$node->field_award_study_area[$node->language][] = array("tid" => $study_area_id);
 		}
 
+		// Student type
+		foreach($student_type_array as $student_type)
+    {
+    	$node->field_award_students[$node->language][] = array("value" => $student_type);
+		}
+		
+		// Frequency
+		foreach($frequency_array as $frequency)
+    {
+    	$node->field_award_frequency[$node->language][] = array("value" => $frequency);
+		}
 		
 		node_save($node);
+		
+		//test
+    //echo "\nrow: $row, frequency: $frequency, node_id: $node->nid\n";
 	}
 	
 	
@@ -849,6 +915,34 @@ function _award_interpret_spreadsheet_column($col)
 	{
 		$return = array("int");
 	}
+	elseif($col == "AG")
+	{
+		$return = "commencing";
+	}
+	elseif($col == "AH")
+	{
+		$return = "current";
+	}
+	elseif($col == "AI")
+	{
+		$return = "not enrolled";
+	}
+	elseif($col == "AO")
+	{
+		$return = "biannual";
+	}
+	elseif($col == "AP")
+	{
+		$return = "annual";
+	}
+	elseif($col == "AQ")
+	{
+		$return = "biennial";
+	}
+	elseif($col == "AR")
+	{
+		$return = "see conditions";
+	}
 	
 	
 	return $return;
@@ -959,6 +1053,25 @@ function _award_get_study_area_array()
 	}
 	
 	return $return_array;
+}
+
+function _award_get_date_in_cell(&$worksheet_obj, $col_string, $row)
+{
+	$return = null;
+
+	$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
+	$date_in_cell = $output_array["value"];
+	
+	if(!empty($date_in_cell))
+	{
+		$return = $date_in_cell; 
+	}
+	else
+	{
+	
+	}
+
+	return $return;
 }
 
 function _output_runtime($ru, $rus, $index)
