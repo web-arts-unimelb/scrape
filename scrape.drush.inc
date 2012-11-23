@@ -472,7 +472,7 @@ function drush_import_award($input = "")
 
 	if(empty($input)) 
 	{
-    drush_set_error('NO_FILE', dt('I require a CSV file with a list of columns.'));
+    drush_set_error('NO_FILE', dt('I require a spreadsheet file with a list of columns.'));
     return 1;
   }
   
@@ -500,18 +500,23 @@ function drush_import_award($input = "")
 	
 	$highest_column = $worksheet_obj->getHighestColumn(); // e.g. it outputs AMK
 	$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
-	$row_to_skip = 222;
+	
+	// Adjust for testing
+	$row_to_skip = 2;
+	//$highest_row = 32;
+	
 	
 	for($row = 1; $row <= $highest_row; ++$row) 
 	{
 		if($row <= $row_to_skip)
 			continue;
 	
-		// Selection
-		$col_string = "B";
-		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
-		$selection = $output_array["value"];
-		if(empty($selection))
+		// Award name
+		$col = "E";
+		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
+		$award_name = $output_array["value"];
+		$award_name_link = $output_array["link"];
+		if(empty($award_name))
 			continue;
 	
 		// Trust
@@ -521,12 +526,6 @@ function drush_import_award($input = "")
 		$trust_link = $output_array["link"];
 		
 		// Skip non-trust
-		
-		// Award name
-		$col = "E";
-		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
-		$award_name = $output_array["value"];
-		$award_name_link = $output_array["link"];
 		
 		// Award type
 		$col_string = "F";
@@ -629,6 +628,12 @@ function drush_import_award($input = "")
     {
     	$background = l($award_name, $award_name_link). "<br/><br/>". $background;
     }
+    
+    
+    //test
+    //echo "\n$award_name_link|". l($award_name, $award_name_link). "\n";
+    
+    
     $node->body[$node->language][] = array("format" => "full_html", "value" => $background);
     
     $node->field_award_application_process[$node->language][] = array("format" => "full_html", "value" => $application_process);
@@ -1018,6 +1023,15 @@ function _award_get_study_area_table_ids(&$worksheet_obj, $col_string, $row)
 	
 	}
 	
+	//test
+	/*
+	echo "\n-start-";
+	print_r($study_area_in_cell);
+	print_r($study_area);
+	print_r($return_array);
+	echo "-end-\n";
+	*/
+	
 	return $return_array;
 }
 
@@ -1064,7 +1078,8 @@ function _award_get_date_in_cell(&$worksheet_obj, $col_string, $row)
 	
 	if(!empty($date_in_cell))
 	{
-		$return = $date_in_cell; 
+		$date = PHPExcel_Shared_Date::ExcelToPHPObject($date_in_cell);
+		$return = $date->format('Y-m-d');
 	}
 	else
 	{
