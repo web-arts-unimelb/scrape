@@ -101,6 +101,7 @@ function drush_import_staff($input = "")
 		// Phone
 		$col_string = "I";
 		$phone = _staff_get_cell_value($worksheet_obj, $col_string, $row);
+  _staff_tweak_phone($phone);
 		
 		// Room
 		$col_string = "J";
@@ -264,4 +265,24 @@ function _staff_get_unit_array()
 	}
 	
 	return $return_array;
+}
+
+/**
+ * Helper to turn an extension into a full phone number.
+ *
+ * @param &$phone
+ *   A (possibly) messy phone number string.
+ */
+function _staff_tweak_phone(&$phone) {
+  if (strlen(trim($phone)) < 6) {
+    switch ($phone{0}) {
+      case 4:
+        $phone = '834' . $phone;
+        break;
+
+      case 5:
+        $phone = '903' . $phone;
+        break;
+      }
+  }
 }
