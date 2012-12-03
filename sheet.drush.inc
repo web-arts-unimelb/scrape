@@ -101,7 +101,7 @@ function drush_import_staff($input = "")
 		// Phone
 		$col_string = "I";
 		$phone = _staff_get_cell_value($worksheet_obj, $col_string, $row);
-  _staff_tweak_phone($phone);
+    _staff_tweak_phone($phone);
 		
 		// Room
 		$col_string = "J";
@@ -222,17 +222,20 @@ function _staff_get_unit_table_ids($unit="", $sub_unit="")
 	$unit = strtolower( trim($unit) );
 	$sub_unit = strtolower( trim($sub_unit) );
 
-	if(!empty($unit))
+	if(!empty($sub_unit))
 	{
-		if( ($key = array_search($unit, $unit_array)) !== FALSE )
+		if( ($key = array_search($sub_unit, $unit_array)) !== FALSE )
 		{
 			$return_array[] = $key;
 		}		
 	}
 
-	if(!empty($sub_unit))
+  // If members of a subunit, leave the parent unit out. Our taxonomy already
+  // knows about that relationship and adding it explicitly here messes up the
+  // sort order on the staff lists.
+	if(!empty($unit) && empty($return_array))
 	{
-		if( ($key = array_search($sub_unit, $unit_array)) !== FALSE )
+		if( ($key = array_search($unit, $unit_array)) !== FALSE )
 		{
 			$return_array[] = $key;
 		}		
@@ -275,7 +278,7 @@ function _staff_get_unit_array()
  */
 function _staff_tweak_phone(&$phone) {
   if (strlen(trim($phone)) < 6) {
-    switch ($phone{0}) {
+    switch (substr($phone, 0, 1)) {
       case 4:
         $phone = '834' . $phone;
         break;
