@@ -70,7 +70,7 @@ function drush_import_staff($input = "")
 			continue;
 
 		// Assume it has given name & family name
-		$col_string = "D";
+		$col_string = "E";
 		if(_staff_is_row_to_skip($worksheet_obj, $col_string, $row))
 			continue;
 
@@ -81,34 +81,38 @@ function drush_import_staff($input = "")
 		// Sub unit
 		$col_string = "B";
 		$sub_unit = _staff_get_cell_value($worksheet_obj, $col_string, $row);
+
+		// Position
+		$col_string = "C";
+		$position = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Title
-		$col_string = "C";
+		$col_string = "D";
 		$title = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Given name
-		$col_string = "D";
+		$col_string = "E";
 		$given_name = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Family name
-		$col_string = "E";
+		$col_string = "F";
 		$family_name = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Email
-		$col_string = "F";
+		$col_string = "G";
 		$email = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Phone
-		$col_string = "I";
+		$col_string = "J";
 		$phone = _staff_get_cell_value($worksheet_obj, $col_string, $row);
     _staff_tweak_phone($phone);
 		
 		// Room
-		$col_string = "J";
+		$col_string = "K";
 		$room = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Building name
-		$col_string = "K";
+		$col_string = "L";
 		$building_name = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		$map_url = _staff_get_building_map_url($building_name);
 		
@@ -125,12 +129,12 @@ function drush_import_staff($input = "")
 		$node->language = LANGUAGE_NONE;
     $node->title = $full_name;
 		
-		$node->field_staff_title[$node->language][] = array("value" => "");
+		$node->field_staff_title[$node->language][] = array("value" => $title);
 		$node->field_staff_family_name[$node->language][] = array("value" => $family_name);
 		$node->field_staff_given_name[$node->language][] = array("value" => $given_name);
 		$node->field_staff_mail[$node->language][] = array("email" => $email);
 		
-		$node->field_staff_position[$node->language][] = array("value" => $title);
+		$node->field_staff_position[$node->language][] = array("value" => $position);
 		$node->	field_staff_phone[$node->language][] = array("value" => $phone);
 		$node->field_staff_room[$node->language][] = array("value" => $room);
 		$node->field_staff_building[$node->language][] = array("title" => $building_name, "url" => $map_url);
