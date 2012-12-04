@@ -613,6 +613,9 @@ function drush_import_award($input = "")
 		$col_range = 4;
 		$frequency_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
 		
+		// Site, this indicates which website this award should go to
+		$site_term_id = _award_get_default_site("arts");
+
 		
 		// Save node
 		$node = new stdClass();
@@ -650,6 +653,7 @@ function drush_import_award($input = "")
     $node->field_award_enquire_now[$node->language][] = array("email" => $enquiry_email);
     
     $node->field_award_application_date[$node->language][] = array("value" => $open_day, "value2" => $close_day);
+    $node->field_syndication_site[$node->language][] = array("tid" => $site_term_id);
     
     
     // Award type
@@ -1101,6 +1105,22 @@ function _award_get_date_in_cell(&$worksheet_obj, $col_string, $row)
 
 	return $return;
 }
+
+function _award_get_default_site($site_name = "")
+{
+	$query = db_select("taxonomy_term_data", "term");
+	$query->join("taxonomy_vocabulary", "voca", "term.vid = voca.vid");
+	$result = $query
+  	->fields("term", array("tid"))
+  	->condition("voca.machine_name", "site")
+  	->condition("term.name", $site_name)
+  	->orderBy("tid", 'ASC')
+  	->execute()
+  	->fetchAssoc();
+
+	return $result["tid"];
+}
+
 
 function _output_runtime($ru, $rus, $index)
 {
