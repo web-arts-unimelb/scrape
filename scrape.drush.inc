@@ -502,7 +502,7 @@ function drush_import_award($input = "")
 	$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
 	
 	// Adjust for testing
-	$row_to_skip = 2;
+	$row_to_skip = 226;
 	//$highest_row = 32;
 	
 	
@@ -1006,22 +1006,29 @@ function _award_get_study_area_table_ids(&$worksheet_obj, $col_string, $row)
 
 	if(count($study_area_in_cell) > 0)
 	{
-		foreach($study_area_in_cell as $study_area_needle)
+		if($study_area_in_cell[0] === "all")
 		{
-			if( ($key = array_search($study_area_needle, $study_area)) !== FALSE )
+			foreach($study_area as $key => $value)
 			{
-				$return_array[] = $key;
+				$return_array[] = $key;	
 			}
-			else
+		}
+		else
+		{
+			foreach($study_area_in_cell as $study_area_needle)
 			{
+				if( ($key = array_search($study_area_needle, $study_area)) !== FALSE )
+				{
+					$return_array[] = $key;
+				}
+				else
+				{
 				
+				}
 			}
 		}
 	}
-	else
-	{
 	
-	}
 	
 	//test
 	/*
@@ -1045,7 +1052,13 @@ function _award_get_study_area_in_cell(&$worksheet_obj, $col_string, $row)
 	$cell = $worksheet_obj->getCellByColumnAndRow($col, $row);
 	$value = $cell->getValue();
 
-	$return = explode("|", $value);
+	$tmp_array = explode("|", $value);
+	
+	foreach($tmp_array as $item)
+	{
+		$return[] = strtolower($item);
+	}
+	
 	return $return;
 }
 
@@ -1063,7 +1076,7 @@ function _award_get_study_area_array()
 
 	foreach($result as $data)
 	{
-		$return_array[$data->tid] = $data->name; 
+		$return_array[$data->tid] = strtolower($data->name); 
 	}
 	
 	return $return_array;
