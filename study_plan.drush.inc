@@ -77,7 +77,7 @@ function drush_import_study_plan($input = "")
 		}
 		elseif(_is_major_sheet($worksheet_obj, $col_string, $row))
 		{
-			
+			_handle_major_sheet($worksheet_obj, $node, $i);
 		}
 		else
 		{
@@ -88,31 +88,6 @@ function drush_import_study_plan($input = "")
 
 	// Save
 	node_save($node);
-	
-	
-	/*
-	$query = new EntityFieldQuery();
-  $entities = $query->entityCondition('entity_type', 'node')
-		->propertyCondition('type', 'webform')
-		->propertyCondition('title', 'Complete a study plan check')
-		->propertyCondition('status', 1)
-		->range(0,1)
-		->execute();
-
-  if (!empty($entities['node'])) {
-    $node = node_load(array_shift(array_keys($entities['node'])));
-  }
-	
-	$cid = webform_get_cid($node, "an_arts_foundation_subject", 0);
-	$items = $node->webform['components'][$cid]['extra']['items'];
-	
-	$new_item = "one\ntwo\nthree";
-	$node->webform['components'][$cid]['extra']['items'] = $new_item;
-	
-	node_save($node);
-	
-	print_r($node);
-	*/
 }
 
 
@@ -151,7 +126,45 @@ function _handle_subject_sheet(&$worksheet_obj, &$node, $sheet_index)
 		$cid = webform_get_cid($node, $field_key, 0);
 		$node->webform['components'][$cid]['extra']['items'] = $option_item_string;	
 	}
+}
+
+
+function _handle_major_sheet(&$worksheet_obj, &$node, $sheet_index)
+{
+	$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
+	$row_to_skip = 1;
+
+	$option_item_string = "";
+	for($row = 1; $row <= $highest_row; ++$row)
+	{
+		if($row <= $row_to_skip)
+			continue;	
 	
+		if(_is_end_of_sheet($worksheet_obj, $row))
+			break;
+	
+		$col_string = "A";
+		$major = _get_cell_value($worksheet_obj, $col_string, $row);
+		
+		$col_string = "B";
+		$tail = _get_cell_value($worksheet_obj, $col_string, $row);
+	
+		if(!empty($tail))
+		{
+			$option_item = $major. "--". $tail. "\n";
+			$option_item_string .= $option_item;
+		}
+		else
+		{
+			$option_item = $major. "\n";
+			$option_item_string .= $option_item;
+		}
+	}
+	$option_item_string = substr($option_item_string, 0, -1);
+
+	$field_key = _get_major_field_key($sheet_index);
+	$cid = webform_get_cid($node, $field_key, 0);
+	$node->webform['components'][$cid]['extra']['items'] = $option_item_string;
 }
 
 
@@ -272,8 +285,26 @@ function _get_field_keys($sheet_index)
 		$field_keys = array("half_subject_1", "half_subject_2", "half_subject_3", "half_subject_4", "half_subject_5", "half_subject_6");
 	}
 	
-	
 	return $field_keys;
+}
+
+
+function _get_major_field_key($sheet_index)
+{
+	$field_key = "";
+
+	if($sheet_index == 3)
+	{
+		// Major
+		$field_key = "first_major";
+	}
+	elseif($sheet_index == 8)
+	{
+		// Major
+		$field_key = "second_major";
+	}
+
+	return $field_key;
 }
 
 
