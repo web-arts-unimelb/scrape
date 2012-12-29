@@ -49,8 +49,21 @@ function drush_import_study_plan($input = "")
 	$reader = PHPExcel_IOFactory::createReader($input_file_type);
 	$excel_obj = $reader->load($input_file_path);
 
-	$sheet_num = $excel_obj->getSheetCount();
+	// Get node
+	$query = new EntityFieldQuery();
+  $entities = $query->entityCondition('entity_type', 'node')
+		->propertyCondition('type', 'webform')
+		->propertyCondition('title', 'Complete a study plan check')
+		->propertyCondition('status', 1)
+		->range(0,1)
+		->execute();
 
+  if(!empty($entities['node'])) 
+  {
+    $node = node_load(array_shift(array_keys($entities['node'])));
+  }
+
+	$sheet_num = $excel_obj->getSheetCount();
   for($i=0; $i<$sheet_num; $i++)
   {
   	$excel_obj->setActiveSheetIndex($i);
@@ -60,8 +73,7 @@ function drush_import_study_plan($input = "")
 		$row = 2;
 		if(_is_subject_sheet($worksheet_obj, $col_string, $row))
 		{
-			$form_key = "";
-			_handle_subject_sheet($worksheet_obj, $form_key);
+			_handle_subject_sheet($worksheet_obj, $node, $i);
 		}
 		elseif(_is_major_sheet($worksheet_obj, $col_string, $row))
 		{
@@ -74,8 +86,8 @@ function drush_import_study_plan($input = "")
 		
   }
 
-	
-	
+	// Save
+	node_save($node);
 	
 	
 	/*
@@ -104,11 +116,12 @@ function drush_import_study_plan($input = "")
 }
 
 
-function _handle_subject_sheet(&$worksheet_obj, $form_key)
+function _handle_subject_sheet(&$worksheet_obj, &$node, $sheet_index)
 {
 	$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
 	$row_to_skip = 1;
 
+	$option_item_string = "";
 	for($row = 1; $row <= $highest_row; ++$row) 
 	{
 		if($row <= $row_to_skip)
@@ -116,7 +129,6 @@ function _handle_subject_sheet(&$worksheet_obj, $form_key)
 	
 		if(_is_end_of_sheet($worksheet_obj, $row))
 			break;
-
 
 		$col_string = "A";
 		$code = _get_cell_value($worksheet_obj, $col_string, $row);
@@ -126,11 +138,20 @@ function _handle_subject_sheet(&$worksheet_obj, $form_key)
 		
 		$col_string = "C";
 		$point = _get_cell_value($worksheet_obj, $col_string, $row);
-	
-		print "\n$code | $title | $point \n";
-	}
 
-	print "\n================== Sheet done =======================\n";
+		$option_item = $code. "--". $title. "--". $point. "\n";
+		$option_item_string .= $option_item; 
+	}
+	$option_item_string = substr($option_item_string, 0, -1);
+	
+	
+	$field_keys = _get_field_keys($sheet_index);
+	foreach($field_keys as $field_key)
+	{
+		$cid = webform_get_cid($node, $field_key, 0);
+		$node->webform['components'][$cid]['extra']['items'] = $option_item_string;	
+	}
+	
 }
 
 
@@ -180,6 +201,79 @@ function _is_end_of_sheet(&$worksheet_obj, $row)
 	{
 		return false;
 	}
+}
+
+
+function _get_field_keys($sheet_index)
+{
+	$field_keys = array();
+	if($sheet_index == 0)
+	{
+		$field_keys = array("arts_foundation_subject");
+	}
+	elseif($sheet_index == 1)
+	{
+		$field_keys = array("arts_foundation_discipline");
+	}
+	elseif($sheet_index == 2)
+	{
+		$field_keys = array("discipline_1", "discipline_2", "discipline_3", "discipline_4");
+	}
+	elseif($sheet_index == 3)
+	{
+		// Major
+	}
+	elseif($sheet_index == 4)
+	{
+		$field_keys = array("major_1_level_1_subject_1", "major_1_level_1_subject_2");
+	}
+	elseif($sheet_index == 5)
+	{
+		$field_keys = array("major_1_level_1_subject_3");
+	}
+	elseif($sheet_index == 6)
+	{
+		$field_keys = array("major_1_level_2_subject_1", "major_1_level_2_subject_2", "major_1_level_2_subject_3");
+	}
+	elseif($sheet_index == 7)
+	{
+		$field_keys = array("major_1_level_3_subject_1", "major_1_level_3_subject_1", "major_1_level_3_subject_1");
+	}
+	elseif($sheet_index == 8)
+	{
+		// Major
+	}
+	elseif($sheet_index == 9)
+	{
+		$field_keys = array("major_2_level_1_subject_1", "major_2_level_1_subject_2");
+	}
+	elseif($sheet_index == 10)
+	{
+		$field_keys = array("major_2_level_2_subject_1", "major_2_level_2_subject_2", "major_2_level_2_subject_3");
+	}
+	elseif($sheet_index == 11)
+	{
+		$field_keys = array("major_2_level_2_subject_3");
+	}
+	elseif($sheet_index == 12)
+	{
+		$field_keys = array("breadth_subject_1");
+	}
+	elseif($sheet_index == 13)
+	{
+		$field_keys = array("breadth_subject_2", "breadth_subject_3", "breadth_subject_4");
+	}
+	elseif($sheet_index == 14)
+	{
+		$field_keys = array("breadth_subject_5", "breadth_subject_6");
+	}
+	elseif($sheet_index == 15)
+	{
+		$field_keys = array("half_subject_1", "half_subject_2", "half_subject_3", "half_subject_4", "half_subject_5", "half_subject_6");
+	}
+	
+	
+	return $field_keys;
 }
 
 
