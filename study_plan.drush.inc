@@ -250,7 +250,7 @@ function _get_field_keys($sheet_index)
 	}
 	elseif($sheet_index == 7)
 	{
-		$field_keys = array("major_1_level_3_subject_1", "major_1_level_3_subject_1", "major_1_level_3_subject_1");
+		$field_keys = array("major_1_level_3_subject_1", "major_1_level_3_subject_2", "major_1_level_3_subject_3");
 	}
 	elseif($sheet_index == 8)
 	{
@@ -266,7 +266,7 @@ function _get_field_keys($sheet_index)
 	}
 	elseif($sheet_index == 11)
 	{
-		$field_keys = array("major_2_level_2_subject_3");
+		$field_keys = array("major_2_level_3_subject_1", "major_2_level_3_subject_2", "major_2_level_3_subject_3");
 	}
 	elseif($sheet_index == 12)
 	{
