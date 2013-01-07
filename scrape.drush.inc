@@ -502,8 +502,8 @@ function drush_import_award($input = "")
 	$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
 	
 	// Adjust for testing
-	$row_to_skip = 226;
-	//$highest_row = 32;
+	$row_to_skip = 2;
+	//$highest_row = 17;
 	
 	
 	for($row = 1; $row <= $highest_row; ++$row) 
@@ -516,6 +516,7 @@ function drush_import_award($input = "")
 		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
 		$award_name = $output_array["value"];
 		$award_name_link = $output_array["link"];
+		
 		if(empty($award_name))
 			continue;
 	
@@ -569,16 +570,19 @@ function drush_import_award($input = "")
 		$col_string = "AD";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$background = $output_array["value"];
+		$background = _destill_field_content($background);
 		
 		// Application process
 		$col_string = "AE";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$application_process = $output_array["value"];
+		$application_process = _destill_field_content($application_process);
 		
-		// Application process
+		// Conditions
 		$col_string = "AF";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$conditions = $output_array["value"];
+		$conditions = _destill_field_content($conditions);
 		
 		// Students (i.e. student type)
 		$col_string = "AG";
@@ -594,6 +598,7 @@ function drush_import_award($input = "")
 		$col_string = "AK";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$apply_link = $output_array["value"];
+		$apply_link = _get_valid_url($apply_link);
 		
 		// Enquiry now email
 		$col_string = "AL";
@@ -1149,4 +1154,39 @@ function _flatten_array($array)
     } 
   } 
   return $result; 
-} 
+}
+
+function _destill_field_content($string)
+{
+	$return_string = "";
+
+	// Too short then remove it
+	if($string === "•")
+	{
+		$return_string = "";
+	}
+	else
+	{
+		$return_string = $string;
+	}
+
+	//echo "\ntest: ". $string. "|". strlen($string). "\n";
+
+	return $return_string;
+}
+
+function _get_valid_url($url)
+{
+	$return_url = "";
+
+	if(valid_url($url, TRUE))
+	{
+		$return_url = $url;
+	}
+	else
+	{
+		$return_url = "";
+	}
+
+	return $return_url;
+}

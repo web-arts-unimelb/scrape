@@ -22,7 +22,6 @@ function sheet_drush_command()
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
   
-  
 	return $items;
 }
 
@@ -246,9 +245,11 @@ function _staff_get_unit_table_ids($unit="", $sub_unit="")
 	}
 
 	//test
+	/*
 	echo "\n-start-";
 	print_r($return_array);
 	echo "-end-\n";
+	*/
 	
 	return $return_array;
 }
