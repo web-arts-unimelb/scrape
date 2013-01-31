@@ -527,6 +527,11 @@ function drush_import_award($input = "")
 		$col_range = 3;
 		if(_is_no_award_type($worksheet_obj, $col_string, $col_range, $row))	
 			continue;
+			
+		// Skip non-student award
+		$col_string = "B";
+		if(_is_non_student_award($worksheet_obj, $col_string, $row))
+			continue;	
 		// -------------------------------- End skip
 		
 	
@@ -1209,7 +1214,6 @@ function _is_no_award_type(&$worksheet_obj, $col_string, $col_range, $row)
 	$condi = false;
 	
 	$value_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
-	
 	if(count($value_array) == 0)
 	{
 		$condi = true;
@@ -1222,6 +1226,28 @@ function _is_no_award_type(&$worksheet_obj, $col_string, $col_range, $row)
 	return $condi;
 }
 
+function _is_non_student_award(&$worksheet_obj, $col_string, $row)
+{
+	$condi = false;
+
+	$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
+	$cell_value = $output_array["value"];	
+	$needle = "Non-student";
+	
+	if( stristr($cell_value, $needle) === FALSE )
+	{
+		$condi = false;
+	}
+	else
+	{
+		$condi = true;
+		
+		//test
+		echo "\nnon_student_award: $cell_value\n";
+	}
+	
+	return $condi;
+}
 
 function _output_runtime($ru, $rus, $index)
 {
