@@ -1001,15 +1001,15 @@ function _award_interpret_spreadsheet_column($col)
 	}
 	elseif($col == "V")
 	{
-		$return = array("au", "nz");
+		$return = array("domestic");
 	}
 	elseif($col == "W")
 	{
-		$return = array("au", "nz", "int");
+		$return = array("open");
 	}
 	elseif($col == "X")
 	{
-		$return = array("int");
+		$return = array("international");
 	}
 	elseif($col == "AF")
 	{
@@ -1231,8 +1231,8 @@ function _is_non_student_award(&$worksheet_obj, $col_string, $row)
 	$condi = false;
 
 	$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
-	$cell_value = $output_array["value"];	
-	$needle = "Non-student";
+	$cell_value = strtolower($output_array["value"]);	
+	$needle = "non-student";
 	
 	if( stristr($cell_value, $needle) === FALSE )
 	{
@@ -1243,7 +1243,9 @@ function _is_non_student_award(&$worksheet_obj, $col_string, $row)
 		$condi = true;
 		
 		//test
-		echo "\nnon_student_award: $cell_value\n";
+		$award_name = _award_get_cell_value($worksheet_obj, "E", $row);
+		$award_name = $award_name["value"];
+		echo "\nnon_student_award: $award_name | $cell_value\n";
 	}
 	
 	return $condi;
