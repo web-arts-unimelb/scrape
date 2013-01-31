@@ -23,9 +23,9 @@ function scrape_drush_command() {
       'target-images' => dt('Specify the image field on the target nodes that should store images.'),
     ),
     'examples' => array(
-      'simple' =>  dt('drush scape filename.txt'),
-      'with url' => dt('drush scape --url=http://ltrc.unimelb.edu.au filename.txt'),
-      'complex' => dt('drush scape --source-url=http://ltrc.unimelb.edu.au --source-title=title --source-content=div[id=content] --target-node=page --target-files=field_attachment --target-images=field_image filename.txt'),
+      'simple' =>  dt('drush scrape filename.txt'),
+      'with url' => dt('drush scrape --url=http://ltrc.unimelb.edu.au filename.txt'),
+      'complex' => dt('drush scrape --source-url=http://ltrc.unimelb.edu.au --source-title=title --source-content=div[id=content] --target-node=page --target-files=field_attachment --target-images=field_image filename.txt'),
       'source csv columns' => dt('OldPath,NewPath,OldTitle,NewTitle'),
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
@@ -57,6 +57,16 @@ function scrape_drush_command() {
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
 	);
 
+	// Warning: delete all award nodes, expect the ones defined
+	$items['delete_awards'] = array(
+		'callback' => 'drush_delete_awards',
+    'description' => dt('Warning: delete all award nodes, expect the ones defined'),
+    'examples' => array(
+      'simple' => dt('drush delete_awards'),
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+	);
+
 	// Import award in spreadsheet to drupal node
 	$items['import_award'] = array(
 		'callback' => 'drush_import_award',
@@ -65,7 +75,7 @@ function scrape_drush_command() {
       'input' => dt('File containing a list of wards'),
     ),
     'examples' => array(
-      'simple' => dt('drush import_prize /full_path/filename.xlsx'),
+      'simple' => dt('drush import_award /full_path/filename.xlsx'),
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
@@ -501,19 +511,28 @@ function drush_import_award($input = "")
 	$highest_column = $worksheet_obj->getHighestColumn(); // e.g. it outputs AMK
 	$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
 	
-	// Adjust for testing
-	$row_to_skip = 2;
-	//$highest_row = 17;
-	
+	// Don't import row 3 to row 30
+	//$row_to_skip = 2;
+	$row_to_skip = 30;
 	
 	for($row = 1; $row <= $highest_row; ++$row) 
 	{
+		// -------------------------------- Start skip
+		// Just skip some rows
 		if($row <= $row_to_skip)
 			continue;
+		
+		// Skip no award type
+		$col_string = "F";
+		$col_range = 3;
+		if(_is_no_award_type($worksheet_obj, $col_string, $col_range, $row))	
+			continue;
+		// -------------------------------- End skip
+		
 	
 		// Award name
-		$col = "E";
-		$output_array = _award_get_cell_value($worksheet_obj, $col, $row);
+		$col_string = "E";
+		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$award_name = $output_array["value"];
 		$award_name_link = $output_array["link"];
 		
@@ -546,75 +565,75 @@ function drush_import_award($input = "")
 		
 		// Citizenship
 		$col_string = "V";
-		$col_range = 4;
+		$col_range = 3;
 		$citizenship_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
 		$citizenship_array = _flatten_array($citizenship_array);
 		
 		// Travel support
-		$col_string = "Z";
+		$col_string = "Y";
 		$travel_support = _award_get_cell_value_bicondition($worksheet_obj, $col_string, $row);
 		
 		// Term
-		$col_string = "AA";
+		$col_string = "Z";
 		$term = _award_get_numeric_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Approximate value
-		$col_string = "AB";
+		$col_string = "AA";
 		$award_value = _award_get_numeric_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Area of study
-		$col_string = "AC";
+		$col_string = "AB";
 		$study_area_array = _award_get_study_area_table_ids($worksheet_obj, $col_string, $row);
 		
 		// Background
-		$col_string = "AD";
+		$col_string = "AC";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$background = $output_array["value"];
 		$background = _destill_field_content($background);
 		
 		// Application process
-		$col_string = "AE";
+		$col_string = "AD";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$application_process = $output_array["value"];
 		$application_process = _destill_field_content($application_process);
 		
 		// Conditions
-		$col_string = "AF";
+		$col_string = "AE";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$conditions = $output_array["value"];
 		$conditions = _destill_field_content($conditions);
 		
 		// Students (i.e. student type)
-		$col_string = "AG";
+		$col_string = "AF";
 		$col_range = 3;
 		$student_type_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
 		
 		// Other
-		$col_string = "AJ";
+		$col_string = "AI";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$other = $output_array["value"];
 		
 		// Apply link
-		$col_string = "AK";
+		$col_string = "AJ";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$apply_link = $output_array["value"];
 		$apply_link = _get_valid_url($apply_link);
 		
 		// Enquiry now email
-		$col_string = "AL";
+		$col_string = "AK";
 		$output_array = _award_get_cell_value($worksheet_obj, $col_string, $row);
 		$enquiry_email = $output_array["value"];
 		
 		// Open day
-		$col_string = "AM";
+		$col_string = "AL";
 		$open_day = _award_get_date_in_cell($worksheet_obj, $col_string, $row);
 		
 		// Close day
-		$col_string = "AN";
+		$col_string = "AM";
 		$close_day = _award_get_date_in_cell($worksheet_obj, $col_string, $row);
 		
 		// Frequency
-		$col_string = "AO";
+		$col_string = "AN";
 		$col_range = 4;
 		$frequency_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
 		
@@ -709,9 +728,6 @@ function drush_import_award($input = "")
 	$utime = _output_runtime($runtime_end, $runtime_start, "utime");
 	$stime = _output_runtime($runtime_end, $runtime_start, "stime");
 	
-	
-	
-	
 	$report = "
 		column: $highest_column, row: $highest_row\n
 		This process used ". $utime. " ms for its computations\n
@@ -750,6 +766,71 @@ function drush_delete_nodes($node_type = '')
 	);
 }
 
+// Delete all award nodes, except the ones defined
+function drush_delete_awards()
+{
+	$exception_titles = array(
+		"A.F. Davies Prize",
+		"AIRC Centennial Prize",
+		"Alma Hansen Scholarship",
+		"Amy Gaye Cowper Tennent Memorial Scholarship",
+		"Anna Lodewyckx Scandinavian Icelandic Scholarships",
+		
+		"Caroline Kay Scholarship",
+		"Elizabeth and Nicholas Slezak Scholarship",
+		"Emma Grollo Memorial Scholarship",
+		"Ernest Scott Prize",
+		"Felix Meyer Scholarship",		
+				
+		"French History Research Higher Degree Scholarship",
+		"Harold Wright Scholarship and Sarah & William Holmes Scholarship",
+		"HB Higgins Poetry Scholarship",
+		"Jessie Webb Scholarship",
+		"John Masefield Prize",
+		
+		"Lizette Bentwitch Scholarship",
+		"Margaret Cohan Research Scholarships",
+		"Miltiades and Alkistis Chryssavgis Scholarship",
+		"Norman Macgeorge Scholarship",
+		"The George Andrew Bailey Memorial Medieval Travelling Scholarship",
+		
+		"The Gwenda Ford English Literature Scholarship",
+		"The Igor Meshakov-Korjakin Russian Scholarship",
+		"The S.Ernest Sprott Fellowship",
+		"The University of Melbourne French Trust Fund",
+		"Ursula Hoff Art History Scholarship",
+		
+		"Wesley Michel Wright Prizes in Poetry",
+		"WT Mollison Scholarship",
+		"Wyselaskie Scholarship in Modern British History",
+	);
+
+
+	$result = db_select('node', 'n')
+		->fields('n')
+		->condition('type', 'award', '=')
+		->execute();
+
+	$keep_counter = 0;
+	$delete_counter = 0;
+
+	foreach($result as $node)
+	{
+		if(in_array($node->title, $exception_titles))
+		{
+			echo "\nkeep $node->nid | $node->title\n";
+			++$keep_counter;
+		}
+		else
+		{
+			node_delete($node->nid);
+			echo "\ndelete $node->nid | $node->title\n";
+			++$delete_counter;
+		}
+	}
+	
+	echo "\ntotal keep: $keep_counter | total delete: $delete_counter\n";
+}
 
 function _drush_scrape_deindex($text) {
   return strtr($text, array('/index.html' => ''));
@@ -923,37 +1004,33 @@ function _award_interpret_spreadsheet_column($col)
 	}
 	elseif($col == "X")
 	{
-		$return = array("au");
-	}
-	elseif($col == "Y")
-	{
 		$return = array("int");
 	}
-	elseif($col == "AG")
+	elseif($col == "AF")
 	{
 		$return = "commencing";
 	}
-	elseif($col == "AH")
+	elseif($col == "AG")
 	{
 		$return = "current";
 	}
-	elseif($col == "AI")
+	elseif($col == "AH")
 	{
 		$return = "not enrolled";
 	}
-	elseif($col == "AO")
+	elseif($col == "AN")
 	{
 		$return = "biannual";
 	}
-	elseif($col == "AP")
+	elseif($col == "AO")
 	{
 		$return = "annual";
 	}
-	elseif($col == "AQ")
+	elseif($col == "AP")
 	{
 		$return = "biennial";
 	}
-	elseif($col == "AR")
+	elseif($col == "AQ")
 	{
 		$return = "see conditions";
 	}
@@ -1029,10 +1106,11 @@ function _award_get_study_area_table_ids(&$worksheet_obj, $col_string, $row)
 				if( ($key = array_search($study_area_needle, $study_area)) !== FALSE )
 				{
 					$return_array[] = $key;
+					//echo "\ngood search $study_area_needle\n";
 				}
 				else
 				{
-				
+					//echo "\nbad search $study_area_needle\n";
 				}
 			}
 		}
@@ -1124,6 +1202,24 @@ function _award_get_default_site($site_name = "")
   	->fetchAssoc();
 
 	return $result["tid"];
+}
+
+function _is_no_award_type(&$worksheet_obj, $col_string, $col_range, $row)
+{
+	$condi = false;
+	
+	$value_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
+	
+	if(count($value_array) == 0)
+	{
+		$condi = true;
+	}
+	else
+	{
+		$condi = false;
+	}
+
+	return $condi;
 }
 
 
