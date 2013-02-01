@@ -525,12 +525,12 @@ function drush_import_award($input = "")
 		// Skip no award type
 		$col_string = "F";
 		$col_range = 3;
-		if(_is_no_award_type($worksheet_obj, $col_string, $col_range, $row))	
+		if(_award_is_no_award_type($worksheet_obj, $col_string, $col_range, $row))	
 			continue;
 			
 		// Skip non-student award
 		$col_string = "B";
-		if(_is_non_student_award($worksheet_obj, $col_string, $row))
+		if(_award_is_non_student_award($worksheet_obj, $col_string, $row))
 			continue;	
 		// -------------------------------- End skip
 		
@@ -572,7 +572,9 @@ function drush_import_award($input = "")
 		$col_string = "V";
 		$col_range = 3;
 		$citizenship_array = _award_get_multiple_cell_values($worksheet_obj, $col_string, $col_range, $row);
-		$citizenship_array = _flatten_array($citizenship_array);
+		//$citizenship_array = _flatten_array($citizenship_array);
+		$citizenship_array = _award_handle_empty_citizenship($citizenship_array);
+		
 		
 		// Travel support
 		$col_string = "Y";
@@ -823,18 +825,18 @@ function drush_delete_awards()
 	{
 		if(in_array($node->title, $exception_titles))
 		{
-			echo "\nkeep $node->nid | $node->title\n";
+			//echo "\nkeep $node->nid | $node->title\n";
 			++$keep_counter;
 		}
 		else
 		{
 			node_delete($node->nid);
-			echo "\ndelete $node->nid | $node->title\n";
+			//echo "\ndelete $node->nid | $node->title\n";
 			++$delete_counter;
 		}
 	}
 	
-	echo "\ntotal keep: $keep_counter | total delete: $delete_counter\n";
+	//echo "\ntotal keep: $keep_counter | total delete: $delete_counter\n";
 }
 
 function _drush_scrape_deindex($text) {
@@ -1005,7 +1007,8 @@ function _award_interpret_spreadsheet_column($col)
 	}
 	elseif($col == "W")
 	{
-		$return = array("open");
+		// drupal uses "_none" as value, to represent N/A
+		$return = array("_none");
 	}
 	elseif($col == "X")
 	{
@@ -1209,7 +1212,7 @@ function _award_get_default_site($site_name = "")
 	return $result["tid"];
 }
 
-function _is_no_award_type(&$worksheet_obj, $col_string, $col_range, $row)
+function _award_is_no_award_type(&$worksheet_obj, $col_string, $col_range, $row)
 {
 	$condi = false;
 	
@@ -1226,7 +1229,7 @@ function _is_no_award_type(&$worksheet_obj, $col_string, $col_range, $row)
 	return $condi;
 }
 
-function _is_non_student_award(&$worksheet_obj, $col_string, $row)
+function _award_is_non_student_award(&$worksheet_obj, $col_string, $row)
 {
 	$condi = false;
 
@@ -1249,6 +1252,20 @@ function _is_non_student_award(&$worksheet_obj, $col_string, $row)
 	}
 	
 	return $condi;
+}
+
+function _award_handle_empty_citizenship($value_array)
+{
+	if(count($value_array) > 0)
+	{
+		// Skip
+		return $value_array;
+	}
+	else
+	{
+		// Drupal uses "_none" to represent N/A
+		return array("_none");
+	}
 }
 
 function _output_runtime($ru, $rus, $index)
