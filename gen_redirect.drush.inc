@@ -85,6 +85,11 @@ function _is_skipped($old_url = "", $new_url = "")
 		$condi = true;
 	}
 
+	if(valid_url($new_url, true))
+	{
+		$condi = true;
+	}
+
 	if(!valid_url($new_url))
 	{
 		$condi = true;
