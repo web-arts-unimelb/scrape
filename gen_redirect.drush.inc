@@ -42,28 +42,32 @@ function drush_gen_redirect($host = "", $input_file = "")
   	'.' => '\.',
   );
 
+  $match_host = strtr($host, array('http://' => ''));
+
   while(!feof($fp)) 
   {
   	list($old_url, $new_url) = fgetcsv($fp, 1024);
+
+    $no_escape = (strpos($new_url, '#') === FALSE) ? '' : ',NE';
 
 		if(_is_skipped($old_url, $new_url))
 		{
 			continue;
 		}
 		
-		printf("RewriteCond %%{HTTP_HOST} ^%s$ [NC]\n", strtr($host, $escape));
+		printf("RewriteCond %%{HTTP_HOST} ^%s$ [NC]\n", strtr($match_host, $escape));
 		
 		if(_is_script($old_url))
 		{
-			printf("RewriteRule ^%s$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
+			printf("RewriteRule ^%s$ $host%s [R=301,L%s]\n", strtr($old_url, $escape), $new_url, $no_escape);
 		}
 		elseif(_is_end_with_forward_slash($old_url))
 		{
-			printf("RewriteRule ^%s?$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
+			printf("RewriteRule ^%s?$ $host%s [R=301,L%s]\n", strtr($old_url, $escape), $new_url, $no_escape);
 		}
 		else
 		{
-			printf("RewriteRule ^%s/?$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
+			printf("RewriteRule ^%s/?$ $host%s [R=301,L%s]\n", strtr($old_url, $escape), $new_url, $no_escape);
 		}
 	}
 	fclose($fp);
