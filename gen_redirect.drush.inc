@@ -42,32 +42,41 @@ function drush_gen_redirect($host = "", $input_file = "")
   	'.' => '\.',
   );
 
-  $match_host = strtr($host, array('http://' => ''));
-
   while(!feof($fp)) 
   {
   	list($old_url, $new_url) = fgetcsv($fp, 1024);
 
-    $no_escape = (strpos($new_url, '#') === FALSE) ? '' : ',NE';
+		// Trim
+		$old_url = trim($old_url);
+		$new_url = trim($new_url);
+
 
 		if(_is_skipped($old_url, $new_url))
 		{
 			continue;
 		}
 		
-		printf("RewriteCond %%{HTTP_HOST} ^%s$ [NC]\n", strtr($match_host, $escape));
+		// Destill
+		$old_url = _destill_old_uri($old_url);
 		
-		if(_is_script($old_url))
+		
+		printf("RewriteCond %%{HTTP_HOST} ^%s$ [NC]\n", strtr($host, $escape));
+		
+		if(valid_url($new_url, true))
 		{
-			printf("RewriteRule ^%s$ $host%s [R=301,L%s]\n", strtr($old_url, $escape), $new_url, $no_escape);
+			printf("RewriteRule ^%s?$ %s [R=301,L]\n", strtr($old_url, $escape), $new_url);
+		}
+		elseif(_is_script($old_url))
+		{
+			printf("RewriteRule ^%s$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
 		}
 		elseif(_is_end_with_forward_slash($old_url))
 		{
-			printf("RewriteRule ^%s?$ $host%s [R=301,L%s]\n", strtr($old_url, $escape), $new_url, $no_escape);
+			printf("RewriteRule ^%s?$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
 		}
 		else
 		{
-			printf("RewriteRule ^%s/?$ $host%s [R=301,L%s]\n", strtr($old_url, $escape), $new_url, $no_escape);
+			printf("RewriteRule ^%s/?$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
 		}
 	}
 	fclose($fp);
@@ -77,47 +86,40 @@ function _is_skipped($old_url = "", $new_url = "")
 {
 	$condi = false;
 
+	$case_pattern = "/^(?=.*[A-Z]).*$/";
+	$php_pattern = "/(\.php)$/";
+
 	// Skip empty fields.
 	if(empty($old_url) || empty($new_url)) 
 	{
 		$condi = true;
 	}
-
-	// If old url is absolute url, skip
-	if(valid_url($old_url, true))
+	elseif(!valid_url($old_url))
 	{
 		$condi = true;
 	}
-
-	if(valid_url($new_url, true))
+	elseif(!valid_url($new_url))
 	{
 		$condi = true;
 	}
-
-	if(!valid_url($new_url))
+	elseif(preg_match($case_pattern, $old_url))
 	{
+		// old_url contains upper case
 		$condi = true;
 	}
-
-	// Contain upper case
-	$pattern = "/^(?=.*[A-Z]).*$/";
-	if(preg_match($pattern, $old_url))
+	elseif(preg_match($case_pattern, $new_url))
 	{
+		// new_url contains upper case
 		$condi = true;
 	}
+	elseif(preg_match($php_pattern, $old_url))
+	{
+		// NOTE: If php script, skip
+		$condi = true;
+	}
+	else
+	{
 	
-	// Contain upper case
-	$pattern = "/^(?=.*[A-Z]).*$/";
-	if(preg_match($pattern, $new_url))
-	{
-		$condi = true;
-	}
-	
-	// NOTE: If php script, skip
-	$pattern = "/(\.php)$/";
-	if(preg_match($pattern, $old_url))
-	{
-		$condi = true;
 	}
 	
 	return $condi;
@@ -147,4 +149,12 @@ function _is_end_with_forward_slash($url = "")
 	{
 		return false;
 	}
+}
+
+function _destill_old_uri($uri)
+{
+	// Remove leading "/" if there is one
+	$uri = ltrim($uri, '/');
+
+	return $uri;
 }
