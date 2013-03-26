@@ -31,6 +31,20 @@ function scrape_drush_command() {
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
 
+  $items['scrape-fix-files'] = array(
+    'callback' => 'drush_scrape_fix_files',
+    'description' => dt('Fix file and image links in imported Drupal content.'),
+    'options' => array(
+      'source-url' => dt('Host URL to prepend to all URIs in file.'),
+      'target-files' => dt('Specify the file field on the target nodes that should store document attachments.'),
+      'target-images' => dt('Specify the image field on the target nodes that should store images.'),
+    ),
+    'examples' => array(
+      'simple' => dt('drush scrape --source-url=http://staff.dev --target-files=field_shared_attachments --target-images=field_shared_images'),
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+  );
+
   // Hardcoded equipment import.
   $items['equipment-import'] = array(
     'callback' => 'drush_equipment_import',
@@ -308,6 +322,10 @@ function drush_scrape_get_images($url, $page, $content) {
   $images = array();
   $uri = parse_url($url);
   foreach ($page->find($content . ' img') as $image) {
+    // Relative path. Unnnngh! Rewrite first.
+    if (strpos($image->src, '..') !== FALSE) {
+      $image->src = strtr($image->src, array('../' => '/'));
+    }
     // Absolute local image OR referenced via absolute local FQDN URL.
     if ($image->src[0] == '/') {
       // Prepend the hostname part of the URL only.
@@ -345,6 +363,10 @@ function drush_scrape_get_images($url, $page, $content) {
 function drush_scrape_get_files($url, $page, $content) {
   $files = array();
   foreach ($page->find($content . ' a') as $link) {
+    // Relative path. Unnnngh! Rewrite first.
+    if (strpos($a->href, '..') !== FALSE) {
+      $a->href = strtr($a->href, array('../' => '/'));
+    }
     // HTML Link?
     if (strpos($link->href, '.htm') !== FALSE)
       continue;
@@ -355,6 +377,14 @@ function drush_scrape_get_files($url, $page, $content) {
 
     // CGI link?
     if (strpos($link->href, '?') !== FALSE)
+      continue;
+
+    // Mailto link?
+    if (strpos($link->href, 'mailto:') !== FALSE)
+      continue;
+
+    // Index link?
+    if ($link->href[strlen($link->href)-1] == '/')
       continue;
 
     // Absolute local link.
@@ -866,6 +896,10 @@ function _drush_scrape_deindex($text) {
 function drush_scrape_get_links($url, $page, $content) {
   $links = array();
   foreach ($page->find($content . ' a') as $link) {
+    // Skip mailto links.
+    if (strpos($link->href, 'mailto:') !== FALSE) {
+      continue;
+    }
     // Absolute local link.
     if ($link->href[0] == '/') {
       // Prepend the hostname part of the URL only.
@@ -1365,4 +1399,65 @@ function _get_valid_url($url)
   }
 
   return $return_url;
+}
+
+/**
+ * Callback handler for the fetch & fix files commands.
+ */
+function drush_scrape_fix_files() {
+  $source_url = drush_get_option('source-url');
+  if (empty($source_url)) {
+    drush_log(dt('Daddy really needs a source-url option.'), 'error');
+    die();
+  }
+  $target_files = drush_get_option('target-files');
+  if (empty($target_files)) {
+    $target_files = 'field_shared_attachments';
+  }
+  $target_images = drush_get_option('target-images');
+  if (empty($target_images)) {
+    $target_images = 'field_shared_images';
+  }
+
+  require_once('simple_html_dom.inc');
+
+  $result = db_query("SELECT nid FROM {node}");
+  while ($row = $result->fetchAssoc()) {
+    $node = node_load($row['nid'], NULL, TRUE);
+    if (empty($node->body[LANGUAGE_NONE][0]['value'])) {
+      continue;
+    }
+
+    drush_log(dt('Processing node @title (@bundle - node/@nid)', array('@title' => $node->title, '@bundle' => $node->type, '@nid' => $node->nid)), 'ok');
+
+    $page = str_get_html($node->body[LANGUAGE_NONE][0]['value']);
+
+    $replacements = drush_scrape_get_links($source_url, $page, NULL);
+    $page_files = drush_scrape_get_files($source_url, $page, NULL);
+    $page_images = drush_scrape_get_images($source_url, $page, NULL);
+
+    // Loop through the page body and add the links to drupal-hosted files.
+    $files = array();
+    foreach ($page_files as $link => $file) {
+      $furl = file_create_url($file['uri']);
+      $furi = drupal_parse_url($furl);
+      $replacements[$link] = $furi['path'];
+      $files[] = $file;
+    }
+
+    // Loop through the page body and add the links to drupal-hosted images.
+    $images = array();
+    foreach ($page_images as $link => $image) {
+      $furl = file_create_url($image['uri']);
+      $furi = drupal_parse_url($furl);
+      $replacements[$link] = $furi['path'];
+      $images[] = $image;
+    }
+
+    $node->body[LANGUAGE_NONE][0]['value'] = strtr($node->body[LANGUAGE_NONE][0]['value'], $replacements);
+    $node->{$target_files}[$node->language] = $files;
+    $node->{$target_images}[$node->language] = $images;
+
+    node_save($node);
+  }
 }
