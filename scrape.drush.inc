@@ -341,8 +341,9 @@ function drush_scrape_get_images($url, $page, $content) {
         $images[$image->src] = $file;
     }
     // Remote link
-    else if (strpos($link->href, 'http') !== FALSE) {
-      // Do not fetch.
+    //else if (strpos($link->href, 'http') !== FALSE) {
+    else if (strpos($image->src, 'http') !== FALSE) { 
+      // Do not fetch. 
     }
     // Local relative link.
     else {
@@ -350,9 +351,12 @@ function drush_scrape_get_images($url, $page, $content) {
       // Download, store.
       $file = drush_scrape_get_file(dirname($url) . '/' . $image->src, $image->alt);
       if (!empty($file))
-        $images[$image->href] = $file;
+        //$images[$image->href] = $file;
+    		$images[$image->src] = $file;
     }
   }
+
+	
 
   return $images;
 }
@@ -382,6 +386,10 @@ function drush_scrape_get_files($url, $page, $content) {
     // Mailto link?
     if (strpos($link->href, 'mailto:') !== FALSE)
       continue;
+	
+		// Contain email address @ symbol
+    if (strpos($link->href, '@') !== FALSE)
+      continue;	
 
     // Index link?
     if ($link->href[strlen($link->href)-1] == '/')
@@ -405,6 +413,10 @@ function drush_scrape_get_files($url, $page, $content) {
     }
     // Remote link
     else if (strpos($link->href, 'http') !== FALSE) {
+      // Do not fetch.
+    }
+    // Remote link as well
+    else if (strpos($link->href, 'www.') !== FALSE) {
       // Do not fetch.
     }
     // Anchor
@@ -1421,7 +1433,7 @@ function drush_scrape_fix_files() {
 
   require_once('simple_html_dom.inc');
 
-  $result = db_query("SELECT nid FROM {node}");
+  $result = db_query("SELECT nid FROM {node} ORDER BY nid");
   while ($row = $result->fetchAssoc()) {
     $node = node_load($row['nid'], NULL, TRUE);
     if (empty($node->body[LANGUAGE_NONE][0]['value'])) {
