@@ -416,7 +416,7 @@ function drush_scrape_get_files($url, $page, $content) {
       // Do not fetch.
     }
     // Remote link as well
-    else if (strpos($link->href, 'www.') !== FALSE) {
+    else if (stripos($link->href, 'www.') === 0) {
       // Do not fetch.
     }
     // Anchor
