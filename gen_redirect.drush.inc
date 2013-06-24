@@ -123,6 +123,10 @@ function _is_skipped($old_url = "", $new_url = "")
 		// NOTE: If php script, skip
 		$condi = true;
 	}
+	elseif(_is_only_slath_difference($old_url, $new_url))
+	{
+		$condi = true;
+	}
 	else
 	{
 	
@@ -148,6 +152,24 @@ function _is_end_with_forward_slash($url = "")
 {
 	$pattern = "/(\/){1}$/";
 	if(preg_match($pattern, $url))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+function _is_only_slath_difference($old_url = "", $new_url = "")
+{
+	$old_url = preg_replace('{/$}', '', $old_url);
+	$old_url = preg_replace('{^/}', '', $old_url);
+	
+	$new_url = preg_replace('{/$}', '', $new_url);
+	$new_url = preg_replace('{^/}', '', $new_url);
+	
+	if($old_url === $new_url)
 	{
 		return true;
 	}
