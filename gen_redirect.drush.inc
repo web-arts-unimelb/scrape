@@ -10,11 +10,11 @@ function gen_redirect_drush_command()
 		'callback' => 'drush_gen_redirect',
     'description' => dt('Generate redirects, which are put into .htaccess'),
     'arguments' => array(
-      'host' => dt('The host e.g. http://arts.unimelb.edu.au'),
+      'host' => dt('The host e.g. arts.unimelb.edu.au'),
       'input_file' => dt('A csv file in formate as old_url, new_url'),
     ),
     'examples' => array(
-      'simple' => dt('drush gen_redirect http://arts.unimelb.edu.au /full_path/filename.csv > out.txt'),
+      'simple' => dt('drush gen_redirect arts.unimelb.edu.au /full_path/filename.csv > out.txt'),
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
@@ -27,7 +27,7 @@ function drush_gen_redirect($host = "", $input_file = "")
 {
 	if(empty($host)) 
 	{
-	  drush_set_error('NO_HOST', dt('I need the host e.g. http://arts.unimelb.edu.au'));
+	  drush_set_error('NO_HOST', dt('I need the host e.g. arts.unimelb.edu.au'));
 	  return 1;
 	}
 	
@@ -50,6 +50,8 @@ function drush_gen_redirect($host = "", $input_file = "")
 		$old_url = trim($old_url);
 		$new_url = trim($new_url);
 
+		$protocol = "http://"; // Assume
+		$site_url = $protocol. $host; 		
 
 		if(_is_skipped($old_url, $new_url))
 		{
@@ -68,15 +70,15 @@ function drush_gen_redirect($host = "", $input_file = "")
 		}
 		elseif(_is_script($old_url))
 		{
-			printf("RewriteRule ^%s$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
+			printf("RewriteRule ^%s$ $site_url%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
 		}
 		elseif(_is_end_with_forward_slash($old_url))
 		{
-			printf("RewriteRule ^%s?$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
+			printf("RewriteRule ^%s?$ $site_url%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
 		}
 		else
 		{
-			printf("RewriteRule ^%s/?$ $host%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
+			printf("RewriteRule ^%s/?$ $site_url%s [R=301,L]\n", strtr($old_url, $escape), $new_url);
 		}
 	}
 	fclose($fp);
@@ -91,6 +93,10 @@ function _is_skipped($old_url = "", $new_url = "")
 
 	// Skip empty fields.
 	if(empty($old_url) || empty($new_url)) 
+	{
+		$condi = true;
+	}
+	if(preg_match('/^\/$/', $old_url))
 	{
 		$condi = true;
 	}
@@ -115,6 +121,10 @@ function _is_skipped($old_url = "", $new_url = "")
 	elseif(preg_match($php_pattern, $old_url))
 	{
 		// NOTE: If php script, skip
+		$condi = true;
+	}
+	elseif(_is_only_slath_difference($old_url, $new_url))
+	{
 		$condi = true;
 	}
 	else
@@ -142,6 +152,24 @@ function _is_end_with_forward_slash($url = "")
 {
 	$pattern = "/(\/){1}$/";
 	if(preg_match($pattern, $url))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+function _is_only_slath_difference($old_url = "", $new_url = "")
+{
+	$old_url = preg_replace('{/$}', '', $old_url);
+	$old_url = preg_replace('{^/}', '', $old_url);
+	
+	$new_url = preg_replace('{/$}', '', $new_url);
+	$new_url = preg_replace('{^/}', '', $new_url);
+	
+	if($old_url === $new_url)
 	{
 		return true;
 	}
