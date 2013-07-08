@@ -1448,21 +1448,6 @@ function drush_scrape_fix_aliases($list = '') {
   fclose($fp);
 }
 
-/*
-`pid` int(10) unsigned NOT NULL auto_increment COMMENT 'A unique path alias identifier.',
-`source` varchar(255) NOT NULL default '' COMMENT 'The Drupal path this alias is for; e.g. node/12.',
-`alias` varchar(255) NOT NULL default '' COMMENT 'The alias for this path; e.g. title-of-the-story.',
-`language` 
-
-      drupal_write_record($table, &$record, $primary_keys = array())
-      if (empty($pid)) {
-        db_insert();
-      }
-      else {
-      }
- */
-}
-
 function _destill_field_content($string)
 {
   $return_string = "";
@@ -1558,4 +1543,3 @@ function drush_scrape_fix_files() {
     node_save($node);
   }
 }
->>>>>>> 6afae711a259a69db8da82962036687a7fd005b1
