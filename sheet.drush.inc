@@ -22,7 +22,6 @@ function sheet_drush_command()
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
   
-  
 	return $items;
 }
 
@@ -58,7 +57,8 @@ function drush_import_staff($input = "")
 	$worksheet_obj = $excel_obj->getActiveSheet();
 	
 	$highest_column = $worksheet_obj->getHighestColumn(); // e.g. it outputs AMK
-	$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
+	//$highest_row = $worksheet_obj->getHighestRow(); // e.g. it outputs 228
+	$highest_row = 130;
 	
 	// Adjust for testing
 	$row_to_skip = 1;
@@ -103,51 +103,41 @@ function drush_import_staff($input = "")
 		$email = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Phone
-		$col_string = "J";
+		$col_string = "H";
 		$phone = _staff_get_cell_value($worksheet_obj, $col_string, $row);
     _staff_tweak_phone($phone);
 		
 		// Room
-		$col_string = "K";
+		$col_string = "I";
 		$room = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		
 		// Building name
-		$col_string = "L";
+		$col_string = "J";
 		$building_name = _staff_get_cell_value($worksheet_obj, $col_string, $row);
 		$map_url = _staff_get_building_map_url($building_name);
 		
 		//echo "\n$unit | $sub_unit | $title | $given_name | $family_name | $email | $phone | $room | $building_name | $map_url\n";
 		
 		
-		// Save node
-		$node = new stdClass();
-    $node->type = "staff";
-    $node->nid = NULL;
-    $node->uid = 1;
-		
-		$full_name = $given_name. " ". $family_name;
-		$node->language = LANGUAGE_NONE;
-    $node->title = $full_name;
-		
-		$node->field_staff_title[$node->language][] = array("value" => $title);
-		$node->field_staff_family_name[$node->language][] = array("value" => $family_name);
-		$node->field_staff_given_name[$node->language][] = array("value" => $given_name);
-		$node->field_staff_mail[$node->language][] = array("email" => $email);
-		
-		$node->field_staff_position[$node->language][] = array("value" => $position);
-		$node->	field_staff_phone[$node->language][] = array("value" => $phone);
-		$node->field_staff_room[$node->language][] = array("value" => $room);
-		$node->field_staff_building[$node->language][] = array("title" => $building_name, "url" => $map_url);
-		
-		$unit_table_ids = _staff_get_unit_table_ids($unit, $sub_unit);
-		foreach($unit_table_ids as $unit_table_id)
-    {
-    	$node->field_staff_unit[$node->language][] = array("tid" => $unit_table_id);
-		}
-		
-		node_save($node);
-	
+		_staff_create_new_node(
+			$title,
+			$family_name,
+			$given_name,
+			$email,
+
+			$position,
+			$phone,
+			$room,
+			$building_name,
+
+			$map_url,
+			$unit,
+			$sub_unit
+		);
 	}
+	
+	// Complete
+	echo "\nImport complete.\n";
 }
 
 	
@@ -214,6 +204,14 @@ function _staff_get_building_map_url($building_name)
 	{
 		$url = $map_url. "/191";
 	}
+	elseif($building_name === "elisabeth murdoch")
+	{
+		$url = $map_url. "/134";
+	}
+	elseif($building_name === "sidney myer asia centre")
+	{
+		$url = $map_url. "/158";
+	}
 	
 	return $url;
 }
@@ -246,9 +244,11 @@ function _staff_get_unit_table_ids($unit="", $sub_unit="")
 	}
 
 	//test
+	/*
 	echo "\n-start-";
 	print_r($return_array);
 	echo "-end-\n";
+	*/
 	
 	return $return_array;
 }
@@ -292,4 +292,50 @@ function _staff_tweak_phone(&$phone) {
         break;
       }
   }
+}
+
+
+function _staff_create_new_node(
+	$title,
+	$family_name,
+	$given_name,
+	$email,
+	
+	$position,
+	$phone,
+	$room,
+	$building_name,
+	
+	$map_url,
+	$unit,
+	$sub_unit
+)
+{
+	// Save node
+	$node = new stdClass();
+  $node->type = "staff";
+  $node->nid = NULL;
+  $node->uid = 1;
+	
+	$full_name = $given_name. " ". $family_name;
+	$node->language = LANGUAGE_NONE;
+  $node->title = $full_name;
+	
+	$node->field_staff_title[$node->language][] = array("value" => $title);
+	$node->field_staff_family_name[$node->language][] = array("value" => $family_name);
+	$node->field_staff_given_name[$node->language][] = array("value" => $given_name);
+	$node->field_staff_mail[$node->language][] = array("email" => $email);
+	
+	$node->field_staff_position[$node->language][] = array("value" => $position);
+	$node->	field_staff_phone[$node->language][] = array("value" => $phone);
+	$node->field_staff_room[$node->language][] = array("value" => $room);
+	$node->field_staff_building[$node->language][] = array("title" => $building_name, "url" => $map_url);
+	
+	$unit_table_ids = _staff_get_unit_table_ids($unit, $sub_unit);
+	foreach($unit_table_ids as $unit_table_id)
+  {
+  	$node->field_staff_unit[$node->language][] = array("tid" => $unit_table_id);
+	}
+	
+	node_save($node);
 }

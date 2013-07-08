@@ -545,7 +545,7 @@ class simple_html_dom_node
         // return nth-element or array
         if (is_null($idx)) return $found;
         else if ($idx<0) $idx = count($found) + $idx;
-        return (isset($found[$idx])) ? $found[$idx] : null;
+        return (isset($found[$idx])) ? $found[$idx] : array();
     }
 
     // seek for given conditions
@@ -1718,4 +1718,3 @@ class simple_html_dom
     function loadFile() {$args = func_get_args();$this->load_file($args);}
 }
 
-?>
