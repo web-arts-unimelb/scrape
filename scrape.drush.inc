@@ -86,6 +86,18 @@ function scrape_drush_command() {
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
 
+  $items['scrape-fix-aliases'] = array(
+    'callback' => 'drush_scrape_fix_aliases',
+    'description' => dt('Fixup URL aliases from CSV.'),
+    'arguments' => array(
+      'csv' => dt('File containing the alias information.'),
+    ),
+    'examples' => array(
+      'simple' =>  dt('drush scrape-fix-aliases foobar.csv'),
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+  );
+
   return $items;
 }
 
@@ -1117,3 +1129,68 @@ function _flatten_array($array)
   } 
   return $result; 
 } 
+
+/**
+ * Command callback.
+ *
+ * Mess with aliases.
+ * id,title,url
+ */
+function drush_scrape_fix_aliases($list = '') {
+  if (empty($list)) {
+    drush_set_error('NO_FILE', dt('I require a CSV file with a list of columns.'));
+    return 1;
+  }
+  if (!file_exists($list)) {
+    drush_set_error('NO_FILE', dt('List file "@file" does not exist.', array('@file'=> $list)));
+    return 1;
+  }
+
+  $fp = fopen($list, 'r');
+  if (!$fp) {
+    drush_set_error('FILE_PERM', dt('Cannot open file @file.', array('@file'=> $list)));
+  }
+
+  while (!feof($fp)) {
+    $alias = fgetcsv($fp);
+
+    $post = intval($alias[0]);
+    $nid = db_select('migrate_map_staffintranetpage', 'm')->fields('m', array('destid1'))->condition('sourceid1', $post)->execute()->fetchField();
+
+    $path = strtr($alias[2], array('http://staff.dev/wordpress/' => ''));
+    $path = trim($path, '/');
+
+    if (!empty($nid) && $path{0} != '?') {
+      $alias = db_select('url_alias', 'u')->fields('u')->condition('source', 'node/' . $nid)->execute()->fetchAssoc();
+      if (!empty($alias)) {
+        $alias['alias'] = $path;
+        drupal_write_record('url_alias', $alias, array('pid'));
+      }
+      else {
+        $alias = array(
+          'pid' => 0,
+          'source' => 'node/' . $nid,
+          'alias' => $path,
+          'language' => LANGUAGE_NONE,
+        );
+        drupal_write_record('url_alias', $alias);
+      }
+    }
+
+  }
+  fclose($fp);
+}
+
+/*
+`pid` int(10) unsigned NOT NULL auto_increment COMMENT 'A unique path alias identifier.',
+`source` varchar(255) NOT NULL default '' COMMENT 'The Drupal path this alias is for; e.g. node/12.',
+`alias` varchar(255) NOT NULL default '' COMMENT 'The alias for this path; e.g. title-of-the-story.',
+`language` 
+
+      drupal_write_record($table, &$record, $primary_keys = array())
+      if (empty($pid)) {
+        db_insert();
+      }
+      else {
+      }
+ */
