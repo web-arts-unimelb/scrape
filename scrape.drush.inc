@@ -321,7 +321,10 @@ function drush_scrape($list = '') {
 function drush_scrape_get_images($url, $page, $content) {
   $images = array();
   $uri = parse_url($url);
-  foreach ($page->find($content . ' img') as $image) {
+
+  $tag = trim($content . ' img');
+
+  foreach ($page->find($tag) as $image) {
     // Relative path. Unnnngh! Rewrite first.
     if (strpos($image->src, '..') !== FALSE) {
       $image->src = strtr($image->src, array('../' => '/'));
@@ -365,11 +368,15 @@ function drush_scrape_get_images($url, $page, $content) {
  * Helper to extract and download local files.
  */
 function drush_scrape_get_files($url, $page, $content) {
+
   $files = array();
-  foreach ($page->find($content . ' a') as $link) {
+  $uri = parse_url($url);
+  $tag = trim($content . ' a');
+
+  foreach ($page->find($tag) as $link) {
     // Relative path. Unnnngh! Rewrite first.
-    if (strpos($a->href, '..') !== FALSE) {
-      $a->href = strtr($a->href, array('../' => '/'));
+    if (strpos($link->href, '..') !== FALSE) {
+      $link->href = strtr($link->href, array('../' => '/'));
     }
     // HTML Link?
     if (strpos($link->href, '.htm') !== FALSE)
@@ -1442,11 +1449,11 @@ function drush_scrape_fix_files() {
 
     drush_log(dt('Processing node @title (@bundle - node/@nid)', array('@title' => $node->title, '@bundle' => $node->type, '@nid' => $node->nid)), 'ok');
 
-    $page = str_get_html($node->body[LANGUAGE_NONE][0]['value']);
+    $page = str_get_html('<html><body>' . $node->body[LANGUAGE_NONE][0]['value'] . '</body></html>');
 
-    $replacements = drush_scrape_get_links($source_url, $page, NULL);
-    $page_files = drush_scrape_get_files($source_url, $page, NULL);
-    $page_images = drush_scrape_get_images($source_url, $page, NULL);
+    $replacements = drush_scrape_get_links($source_url, $page, '');
+    $page_files = drush_scrape_get_files($source_url, $page, '');
+    $page_images = drush_scrape_get_images($source_url, $page, '');
 
     // Loop through the page body and add the links to drupal-hosted files.
     $files = array();
