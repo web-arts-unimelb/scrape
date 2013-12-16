@@ -1503,7 +1503,8 @@ function drush_scrape_fix_files() {
 
   require_once('simple_html_dom.inc');
 
-  $result = db_query("SELECT nid FROM {node} ORDER BY nid");
+  // $result = db_query("SELECT nid FROM {node} ORDER BY nid");
+  $result =  db_query("SELECT destid1 AS nid FROM {migrate_map_staffintranetpage} WHERE sourceid1 IN (428,434,1768,2299,2302,2651,2719,2725,2729,2739,2741,2744,2746,2751,2755,2757,2761,2764,2776,2778,2780,2785,2795,2797,2799,2801,2803,2805,2809,2812,2815,2818,2820,2823,2825,2828,2831,2833,2835,2839,2841,2843,2874,2876,2885,2887,2890,2894,3138,3160,3165,3168,3171,3175,3178,3181,3183,3185,3194,3196,3199,3201,3203,3206,3208,3210,3221,3259,3265,3273,3277,3281,3287,3292,3296,3299,3301,3303,3305,3307,3309,3311,3338,3340,3343,3354,3356,3360,3362,3368,3373,3376,3378,3385,3396,3401,3403,3405,3411,3415,3417,3419,3421,3425,3429,3431,3433,3436,3439,3442,3444,3447,3449,3451,3453,3455,3458,3460,3470,3748,3750,3757,3759,3869,3886,3975,4093,4094,4095,4096,4097,4098,4099,4100,4101,4102,4156,4240,4299,4365,4427,4429,4431,4436,4438,4655,4668,4720,4982,5085,5092,5344,5348,5395,5461,5467,5587,5638,5680,5797,6213,6307,6618,6622,6624,6626,7304,7539,7948,8031,8201,8199,8196,8091,8538,8569,8581,8578,8719,9109,9330,9523,9533,9593,9612,9621,9635)");
   while ($row = $result->fetchAssoc()) {
     $node = node_load($row['nid'], NULL, TRUE);
     if (empty($node->body[LANGUAGE_NONE][0]['value'])) {
@@ -1542,4 +1543,37 @@ function drush_scrape_fix_files() {
 
     node_save($node);
   }
+}
+
+/**
+ * Command callback.
+ *
+ * Remove virtual directory stucture from the intranet.
+ */
+function drush_scrape_intranet_unvdir() {
+   if($foo) {
+    $nid = db_select('migrate_map_staffintranetpage', 'm')->fields('m', array('destid1'))->condition('sourceid1', $post)->execute()->fetchField();
+
+    $path = strtr($alias[2], array('http://staff.dev/wordpress/' => ''));
+    $path = trim($path, '/');
+
+    if (!empty($nid) && $path{0} != '?') {
+      $alias = db_select('url_alias', 'u')->fields('u')->condition('source', 'node/' . $nid)->execute()->fetchAssoc();
+      if (!empty($alias)) {
+        $alias['alias'] = $path;
+        drupal_write_record('url_alias', $alias, array('pid'));
+      }
+      else {
+        $alias = array(
+          'pid' => 0,
+          'source' => 'node/' . $nid,
+          'alias' => $path,
+          'language' => LANGUAGE_NONE,
+        );
+        drupal_write_record('url_alias', $alias);
+      }
+    }
+
+  }
+  fclose($fp);
 }
