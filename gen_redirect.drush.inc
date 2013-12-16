@@ -58,7 +58,7 @@ function drush_gen_redirect($host = "", $input_file = "") {
 
     printf("RewriteCond %%{HTTP_HOST} ^%s$ [NC]\n", strtr($host, $escape));
 
-    if (valid_url($new_url, TRUE)) {
+    if (_gen_redirect_valid_url($new_url, TRUE)) {
       printf("RewriteRule ^%s?$ %s [R=301,L]\n", strtr($old_url, $escape), $new_url);
     }
     elseif (_is_script($old_url)) {
@@ -87,10 +87,10 @@ function _is_skipped($old_url = "", $new_url = "") {
   if (preg_match('/^\/$/', $old_url)) {
     $condi = TRUE;
   }
-  elseif (!valid_url($old_url)) {
+  elseif (!_gen_redirect_valid_url($old_url)) {
     $condi = TRUE;
   }
-  elseif (!valid_url($new_url)) {
+  elseif (!_gen_redirect_valid_url($new_url)) {
     $condi = TRUE;
   }
   elseif (preg_match($case_pattern, $old_url)) {
@@ -152,4 +152,28 @@ function _destill_old_uri($uri) {
   $uri = ltrim($uri, '/');
 
   return $uri;
+}
+
+function _gen_redirect_valid_url($url, $absolute = FALSE) {
+  if ($absolute) {
+    return (bool) preg_match("
+      /^                                                      # Start at the beginning of the text
+      (?:ftp|https?|feed):\/\/                                # Look for ftp, http, https or feed schemes
+      (?:                                                     # Userinfo (optional) which is typically
+        (?:(?:[\w\.\-\+!$&'\(\)*\+,;=]|%[0-9a-f]{2})+:)*      # a username or a username and password
+        (?:[\w\.\-\+%!$&'\(\)*\+,;=]|%[0-9a-f]{2})+@          # combination
+      )?
+      (?:
+        (?:[a-z0-9\-\.]|%[0-9a-f]{2})+                        # A domain name or a IPv4 address
+        |(?:\[(?:[0-9a-f]{0,4}:)*(?:[0-9a-f]{0,4})\])         # or a well formed IPv6 address
+      )
+      (?::[0-9]+)?                                            # Server port number (optional)
+      (?:[\/|\?]
+        (?:[\w#!:\.\?\+=&@$'~*,;\/\(\)\[\]\-]|%[0-9a-f]{2})   # The path and query (optional)
+      *)?
+      $/xi", $url);
+  }
+  else {
+    return (bool) preg_match("/^(?:[\w#!:\.\?\+=&@$'~*,;\/\(\)\[\]\-]|%[0-9a-f]{2})+$/i", $url);
+  }
 }
