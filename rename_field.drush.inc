@@ -43,6 +43,8 @@ function drush_rename_field() {
 	mymodule_site_rename_fields($fields);	
 
 	_rename_bundle_in_field_config_instance($fields);
+
+	drupal_flush_all_caches();
 }
 
 /**

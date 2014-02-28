@@ -79,6 +79,7 @@ function _is_skipped($old_url = "", $new_url = "") {
 
   $case_pattern = "/^(?=.*[A-Z]).*$/";
   $php_pattern = "/(\.php)$/";
+	$http_pattern = "|^https?://|";
 
   // Skip empty fields.
   if (empty($old_url) || empty($new_url)) {
@@ -108,6 +109,10 @@ function _is_skipped($old_url = "", $new_url = "") {
   elseif (_is_only_slath_difference($old_url, $new_url)) {
     $condi = TRUE;
   }
+	elseif (preg_match($http_pattern, $old_url)) {
+		// $old_url cannot contain http or https
+		$condi = TRUE;
+	}
 
   return $condi;
 }
