@@ -1,0 +1,9 @@
+*~
+*.swp
+
+# Directory
+output
+
+# My files
+copy_and_paste_command.txt
+out.txt
