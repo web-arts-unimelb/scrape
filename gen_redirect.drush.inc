@@ -39,6 +39,10 @@ function drush_gen_redirect($host = "", $input_file = "") {
     '-' => '\-',
   );
 
+	// If $old_url contains full url, remove output directory, see _handle_full_url for why.
+  $output_dir_path = 'output';
+  _remove_dir_files($output_dir_path);
+
   while (!feof($fp)) {
     list($old_url, $new_url) = fgetcsv($fp, 1024);
 
@@ -52,6 +56,11 @@ function drush_gen_redirect($host = "", $input_file = "") {
     if (_is_skipped($old_url, $new_url)) {
       continue;
     }
+
+		if (_is_full_url($old_url)) {
+			_handle_full_url($old_url, $new_url, $host);
+			continue; // Skip the rest
+		}
 
     // Destill
     $old_url = _destill_old_uri($old_url);
@@ -79,7 +88,6 @@ function _is_skipped($old_url = "", $new_url = "") {
 
   $case_pattern = "/^(?=.*[A-Z]).*$/";
   $php_pattern = "/(\.php)$/";
-	$http_pattern = "|^https?://|";
 
   // Skip empty fields.
   if (empty($old_url) || empty($new_url)) {
@@ -109,10 +117,6 @@ function _is_skipped($old_url = "", $new_url = "") {
   elseif (_is_only_slath_difference($old_url, $new_url)) {
     $condi = TRUE;
   }
-	elseif (preg_match($http_pattern, $old_url)) {
-		// $old_url cannot contain http or https
-		$condi = TRUE;
-	}
 
   return $condi;
 }
@@ -181,4 +185,96 @@ function _gen_redirect_valid_url($url, $absolute = FALSE) {
   else {
     return (bool) preg_match("/^(?:[\w#!:\.\?\+=&@$'~*,;\/\(\)\[\]\-]|%[0-9a-f]{2})+$/i", $url);
   }
+}
+
+function _is_full_url($url) {
+	$http_pattern = "|^https?://|";
+
+	if(preg_match($http_pattern, $url)) {
+ 		return true; 
+  }
+	else {
+		return false;
+	}
+}
+
+function _handle_full_url($old_url, $new_url, $migrated_hostname) {
+	/*
+		- So assume we have $old_url: http://classics-archaeology.unimelb.edu.au/research/research-facilities/library.html?arg=value#anchor
+	 		$new_url: /classics-archaeology/library 
+
+		- Or $old_url: http://classics-archaeology.unimelb.edu.au
+			$new_url: /classics-archaeology 
+	*/
+
+	$part = parse_url($old_url);
+	$scheme = $part['scheme']; // e.g. http
+	$hostname = $part['host']; // e.g. classics-archaeology.unimelb.edu.au
+	$path = $part['path']; // e.g. /research/research-facilities/library.html
+	$query = $part['query']; // e.g. arg=value
+	$fragment = $part['fragment']; // e.g. anchor
+	
+	if(!empty($query)) {
+		$needed_query = '?'. $query;
+	}
+	else {
+		$needed_query = '';
+	}
+
+	if(!empty($fragment)) {
+    $needed_fragment = '#'. $fragment;
+  }
+  else {
+    $needed_fragment = '';
+  }
+
+	// e.g. /research/research-facilities/library.html?arg=value#anchor
+	$needed_old_uri = $path. $needed_query. $needed_fragment;
+
+	if(empty($needed_old_uri)) {
+		$tmp_needed_old_uri = '/';
+	}
+	else {
+		$tmp_needed_old_uri = $needed_old_uri;
+	}
+
+	// Destill
+  $tmp_needed_old_uri = _destill_old_uri($tmp_needed_old_uri);
+
+	$escape = array(
+    '.' => '\.',
+    '-' => '\-',
+  );
+
+	$file_name = 'output/'. $hostname. '.txt';
+	$fp = fopen($file_name, 'a');
+
+	// Ignore for now
+	//fprintf($fp, "RewriteCond %%{HTTP_HOST} ^%s$ [NC]\n", strtr($hostname, $escape));
+
+  if (_gen_redirect_valid_url($new_url, TRUE)) {
+		// $new_url is full url 
+		fprintf($fp, "RewriteRule ^%s?$ %s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
+  }
+  elseif (_is_script($tmp_needed_old_uri)) {
+		// Is a script
+  	fprintf($fp, "RewriteRule ^%s$ $migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
+  }
+  elseif (_is_end_with_forward_slash($tmp_needed_old_uri)) {
+    fprintf($fp, "RewriteRule ^%s?$ $migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
+  }
+  else {
+    fprintf($fp, "RewriteRule ^%s/?$ $migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
+  }
+
+	fclose($fp);
+}
+
+function _remove_dir_files($path) {
+	$files = glob($path. '/*'); // get all file names
+	foreach($files as $file){ // iterate files
+  	if(is_file($file)) {
+    	unlink($file); // delete file
+		}
+	}
 }
