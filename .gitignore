@@ -2,6 +2,7 @@
 *.swp
 
 # Directory
+input
 output
 
 # My files

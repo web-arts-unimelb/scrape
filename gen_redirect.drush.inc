@@ -248,6 +248,7 @@ function _handle_full_url($old_url, $new_url, $migrated_hostname) {
 
 	$file_name = 'output/'. $hostname. '.txt';
 	$fp = fopen($file_name, 'a');
+	$needed_migrated_hostname = 'http://'. $migrated_hostname; // Assume http only
 
 	// Ignore for now
 	//fprintf($fp, "RewriteCond %%{HTTP_HOST} ^%s$ [NC]\n", strtr($hostname, $escape));
@@ -258,13 +259,13 @@ function _handle_full_url($old_url, $new_url, $migrated_hostname) {
   }
   elseif (_is_script($tmp_needed_old_uri)) {
 		// Is a script
-  	fprintf($fp, "RewriteRule ^%s$ $migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
+  	fprintf($fp, "RewriteRule ^%s$ $needed_migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
   }
   elseif (_is_end_with_forward_slash($tmp_needed_old_uri)) {
-    fprintf($fp, "RewriteRule ^%s?$ $migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
+    fprintf($fp, "RewriteRule ^%s?$ $needed_migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
   }
   else {
-    fprintf($fp, "RewriteRule ^%s/?$ $migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
+    fprintf($fp, "RewriteRule ^%s/?$ $needed_migrated_hostname%s [R=301,L]\n", strtr($tmp_needed_old_uri, $escape), $new_url);
   }
 
 	fclose($fp);
