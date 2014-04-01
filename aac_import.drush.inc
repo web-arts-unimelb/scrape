@@ -20,16 +20,7 @@ function aac_import_drush_command() {
 }
 
 function drush_aac_import() {
-	$aac_ruby_db = array(
-		'database' => 'asian_cinema',
-		'username' => 'root',
-		'password' => '11111111',
-		'host' => 'localhost',
-		'driver' => 'mysql',
-  );
-  // replace 'YourDatabaseKey' with something that's unique to your module
-  Database::addConnectionInfo('aac_ruby_db_key', 'default', $aac_ruby_db);
-  db_set_active('aac_ruby_db_key');
+  db_set_active('aac_ruby_db');
 
 	$directors_data = _get_directors_data();
 	
