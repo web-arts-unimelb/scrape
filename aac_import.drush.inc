@@ -19,7 +19,19 @@ function aac_import_drush_command() {
   return $items;
 }
 
+
 function drush_aac_import() {
+	
+	$is_created_data = true;
+	if($is_created_data) {
+		_aac_create_data();
+	}
+	
+	
+}
+
+
+function _aac_create_data() {
 	_clean_up_nodes();
 
 	_create_directors_data();
@@ -30,14 +42,13 @@ function drush_aac_import() {
 	_create_companies_data();
 	drush_print( 
     dt("Create production companies") 
-  );
+  );	
 	
 	_create_films_data();
 	drush_print( 
     dt("Create films") 
-  );
+  );	
 }
-
 
 function _create_directors_data() {
 	// Switch db is expensive, so use following
@@ -78,8 +89,11 @@ function _create_films_data() {
 	$get_row = array(
 		'slug', 
 		'synopsis_markup',
+		'category',
 		'title',
+		
 		'country_of_origin',
+		'id',
 		'year',
 		'notes_markup',
 	);
@@ -92,10 +106,12 @@ function _create_films_data() {
 	while($row = $result->fetchAssoc()) {
 		_create_node_film(
 			$row['slug'],
-			$row['synopsis_markup'], 
-			$row['title'], 
-			$row['country_of_origin'],
+			$row['synopsis_markup'],
+			$row['category'],
+			$row['title'],
 			
+			$row['country_of_origin'],
+			$row['id'],
 			$row['year'],
 			$row['notes_markup']
 		);
@@ -134,9 +150,11 @@ function _create_node_company($slug, $name) {
 function _create_node_film(
 	$slug,
 	$synopsis_markup,
+	$category_slug, // Only single category in yml data
 	$title,
-	$country_of_origin,
 	
+	$country_of_origin,
+	$film_id,
 	$year,
 	$notes_markup
 	 
@@ -158,6 +176,19 @@ function _create_node_film(
   
   $node->field_film_year[$node->language][0]['value'] = $year;
   $node->field_film_notes[$node->language][0]['value'] = $notes_markup;
+  
+  // Category
+  $ids = _aac_get_vocabulary_array('film_category');
+  $category_name = _aac_slug_to_category($category_slug);
+  $category_id = $ids[$category_name];  
+  $node->field_film_category[$node->language][0] = array('tid' => $category_id);
+
+  // Tag
+  $ids = _aac_get_tag_term_ids($film_id);
+  foreach($ids as $term_id) {
+  	$node->field_shared_tags[$node->language][] = array('tid' => $term_id);
+  }
+
   
   node_save($node);
 }
@@ -193,7 +224,63 @@ function _delete_nodes($node_type = '')
   }
 
   // Simple debug message so we can see what had been deleted.
-  drush_print( 
+  drush_print(
     dt("node_type: $node_type | $deleted_count nodes of $node_type have been deleted") 
   );
+}
+
+
+function _aac_slug_to_category($category_slug) {
+	$query = Database::getConnection('default', 'aac_ruby_db')
+		->select('Category', 'cat');	
+	
+	$result = $query
+		->fields('cat', array('name'))
+		->condition('slug', $category_slug, '=')
+  	->execute()
+		->fetchAssoc();
+
+	$category_name = strtolower($result['name']);
+
+	return $category_name;
+}
+
+
+function _aac_get_tag_term_ids($film_id) {
+	$return_array = array();
+	$drupal_aac_tag = _aac_get_vocabulary_array("tags");
+	
+	$query = Database::getConnection('default', 'aac_ruby_db')
+		->select('Tag');
+	$result = $query
+		->fields("Tag", array("phrase", "taggable_id"))
+		->condition("taggable_id", $film_id, "=")
+		->orderBy("taggable_id", 'ASC')
+  	->execute();
+  
+  foreach($result as $data) {
+  	$return_array[] = $drupal_aac_tag[strtolower($data->phrase)];
+  }
+  
+  return $return_array;	
+}
+
+
+function _aac_get_vocabulary_array($voca_name = '') {
+	$return_array = array();
+
+	$query = db_select("taxonomy_term_data", "term");
+	$query->join("taxonomy_vocabulary", "voca", "term.vid = voca.vid");
+	$result = $query
+  	->fields("term", array("tid", "name"))
+  	->condition("voca.machine_name", $voca_name)
+  	->orderBy("tid", 'ASC')
+  	->execute();
+
+	foreach($result as $data)
+	{
+		$return_array[strtolower($data->name)] = $data->tid; 
+	}
+	
+	return $return_array;
 }
