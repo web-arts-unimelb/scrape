@@ -188,7 +188,18 @@ function _create_node_film(
   foreach($ids as $term_id) {
   	$node->field_shared_tags[$node->language][] = array('tid' => $term_id);
   }
-
+  
+  // Director
+  $director_ids = _aac_get_director_ids($film_id);
+  foreach($director_ids as $director_id) {
+  	$node->field_film_director[$node->language][0] = array('target_id' => $director_id);
+	}
+  
+  // Company
+  $company_ids = _aac_get_company_ids($film_id);
+  foreach($company_ids as $company_id) {
+  	$node->field_film_company[$node->language][0] = array('target_id' => $company_id);
+	}
   
   node_save($node);
 }
@@ -280,6 +291,62 @@ function _aac_get_vocabulary_array($voca_name = '') {
 	foreach($result as $data)
 	{
 		$return_array[strtolower($data->name)] = $data->tid; 
+	}
+	
+	return $return_array;
+}
+
+
+function _aac_get_director_ids($film_id) {
+	$return_array = array();
+
+	$query = Database::getConnection('default', 'aac_ruby_db')
+		->select('AacflmFilm', 'film');
+	$query->join("AacflmDirection", "direction", "film.id = direction.film_id");
+	$query->join("AacflmDirector", "dir", "direction.director_id = dir.id");
+	$query->condition("film.id", $film_id, "=");
+	
+	$result = $query
+		->fields('dir', array('name'))
+		->execute();
+	
+	foreach($result as $data)
+	{
+		// Get director id from drupal node
+		$title = $data->name;
+		$type = 'director';
+		$result = db_query("SELECT n.nid FROM {node} n WHERE n.title = :title AND n.type = :type", array(":title"=> $title, ":type"=> $type));  
+		$nid = $result->fetchField();
+		
+		$return_array[$title] = $nid; 
+	}
+	
+	return $return_array;
+}
+
+
+function _aac_get_company_ids($film_id) {
+	$return_array = array();
+
+	$query = Database::getConnection('default', 'aac_ruby_db')
+		->select('AacflmFilm', 'film');
+	$query->join("AacflmProduction", "prod", "film.id = prod.film_id");
+	$query->join("AacflmProductionCompany", "com", "prod.production_company_id = com.id");
+	$query->condition("film.id", $film_id, "=");
+	
+	$result = $query
+		->fields('com', array('name'))
+		->execute();
+	
+	foreach($result as $data)
+	{
+		// Get director id from drupal node
+		$title = $data->name;
+		$type = 'company';
+		$result = db_query("SELECT n.nid FROM {node} n WHERE n.title = :title AND n.type = :type", array(":title"=> $title, ":type"=> $type));  
+		$nid = $result->fetchField();
+		
+		$return_array[$title] = $nid; 
 	}
 	
 	return $return_array;
