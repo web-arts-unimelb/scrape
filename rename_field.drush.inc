@@ -26,6 +26,7 @@ function rename_field_drush_command()
 */
 function drush_rename_field() {
 	// Define your fields here
+	/*
 	$fields = array(
   	'field_org_contact_name' => 'field_par_contact_name',
 		'field_org_contact_email' => 'field_par_contact_email',
@@ -39,7 +40,36 @@ function drush_rename_field() {
 
 		'field_org_external_depar_in' => 'field_par_external_depar_in',
 	);
-	
+	*/
+
+	/*
+	$fields = array(
+		'field_foa_is_live_stream' => 'field_foa_event_is_live_stream',
+		'field_foa_host' => 'field_foa_event_host',
+		'field_foa_time' => 'field_foa_event_time',
+		'field_foa_is_public' => 'field_foa_event_is_public',
+
+		'field_foa_is_sold_out' => 'field_foa_event_is_sold_out',
+		'field_foa_is_cancelled' => 'field_foa_event_is_cancelled',
+		'field_foa_p_title' => 'field_foa_event_p_title',
+		'field_foa_p_firstname' => 'field_foa_event_p_firstname',
+
+		'field_foa_p_lastname' => 'field_foa_event_p_lastname',
+    'field_foa_p_fullname' => 'field_foa_event_p_fullname',
+    'field_foa_p_url' => 'field_foa_event_p_url',
+    'field_foa_address' => 'field_foa_event_address',
+
+		'field_foa_building' => 'field_foa_event_building',
+    'field_foa_space' => 'field_foa_event_space',
+	);
+	*/	
+
+	$fields = array(
+		'field_foa_event_address' => 'field_foa_event_loca_address', 
+		'field_foa_event_building' => 'field_foa_event_loca_building',
+		'field_foa_event_space' => 'field_foa_event_loca_space', 
+	);
+
 	mymodule_site_rename_fields($fields);	
 
 	_rename_bundle_in_field_config_instance($fields);
@@ -48,6 +78,7 @@ function drush_rename_field() {
 }
 
 /**
+* https://www.drupal.org/node/1130386
 * Rename an array of fields.
 *
 * Adapted from code in forum_update_7003(). See also

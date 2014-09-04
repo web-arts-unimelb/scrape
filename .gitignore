@@ -5,6 +5,7 @@
 input
 output
 misc
+config
 
 # My files
 copy_and_paste_command.txt
