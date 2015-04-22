@@ -81,7 +81,9 @@ function fae_clean_staff_profile() {
 
 			// Avoid crash joseki
 			// http://php.net/manual/en/function.sleep.php
-    	sleep(5);
+			// I hold a timer and test it.
+			$time = 120;
+    	sleep($time);
 		}
 
 	}
