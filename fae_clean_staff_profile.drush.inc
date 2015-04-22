@@ -24,6 +24,7 @@ function fae_clean_staff_profile($host) {
 	// Note:
 	// $host == http://cc.dev.arts.unimelb.edu.au
 
+	_fae_clean_staff_msg("Start");	
 	$lang = LANGUAGE_NONE;
 	$users = entity_load('user');
 
@@ -44,7 +45,9 @@ function fae_clean_staff_profile($host) {
 	file_put_contents($log_file, '');	
 
 	//Test
-	//$i = 0;
+	$i = 0;
+
+	_fae_clean_staff_msg("Simulate user visits");	
 	foreach($users as $user_id => $user) {
 		if(
 			isset($user->field_fae_resource[$lang][0]['url']) &&
@@ -59,7 +62,6 @@ function fae_clean_staff_profile($host) {
 			curl_setopt($curl, CURLOPT_URL, $url);
 		  $result = curl_exec($curl);
 
-			/*
 			// Test	  
 		  if($i == 2) {
 		  	break;
@@ -67,13 +69,26 @@ function fae_clean_staff_profile($host) {
 		  else {
 		  	++$i;
 		  }
-			*/
 
-			// Avoid crash joseki 
-    	sleep(4);
+			// Avoid crash joseki
+			// http://php.net/manual/en/function.sleep.php
+    	sleep(5);
 		}
 
 	}
 	
 	curl_close($curl);
+
+	_fae_clean_staff_msg("Making clean data");	
+	_fae_clean_staff_copy_data();
+
+	_fae_clean_staff_msg("End");
+}
+
+function _fae_clean_staff_msg($msg) {
+	echo "\n-". $msg. "-\n";
+}
+
+function _fae_clean_staff_copy_data() {
+
 }
