@@ -8,11 +8,13 @@ function fae_clean_staff_profile_drush_command() {
   $items['fae_clean_staff_profile'] = array(
     'callback' => 'fae_clean_staff_profile',
     'description' => dt('fae_clean_staff_profile'),
+		/*
     'arguments' => array(
       'host' => dt('The host e.g. http://cc.dev.arts.unimelb.edu.au'),
     ),
+		*/
     'examples' => array(
-      'simple' => dt('drush fae_clean_staff_profile http://cc.dev.arts.unimelb.edu.au'),
+      'simple' => dt('drush fae_clean_staff_profile'),
     ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
@@ -20,11 +22,14 @@ function fae_clean_staff_profile_drush_command() {
 }
 
 
-function fae_clean_staff_profile($host) {
-	// Note:
-	// $host == http://cc.dev.arts.unimelb.edu.au
+function fae_clean_staff_profile() {
+	// Turn on test on small data
+	$_is_small_data_test = FALSE; 
 
-	_fae_clean_staff_msg("Start");	
+	_fae_clean_staff_msg("Start");
+	
+	global $base_url;
+	$host = $base_url;
 	$lang = LANGUAGE_NONE;
 	$users = entity_load('user');
 
@@ -45,7 +50,9 @@ function fae_clean_staff_profile($host) {
 	file_put_contents($log_file, '');	
 
 	//Test
-	$i = 0;
+	if($_is_small_data_test) {
+		$i = 0;
+	}	
 
 	_fae_clean_staff_msg("Simulate user visits");	
 	foreach($users as $user_id => $user) {
@@ -62,13 +69,15 @@ function fae_clean_staff_profile($host) {
 			curl_setopt($curl, CURLOPT_URL, $url);
 		  $result = curl_exec($curl);
 
-			// Test	  
-		  if($i == 2) {
-		  	break;
-		  }
-		  else {
-		  	++$i;
-		  }
+			// Test
+			if($_is_small_data_test) {
+		  	if($i == 2) {
+		  		break;
+		  	}
+		  	else {
+		  		++$i;
+		  	}
+			}
 
 			// Avoid crash joseki
 			// http://php.net/manual/en/function.sleep.php
@@ -89,6 +98,25 @@ function _fae_clean_staff_msg($msg) {
 	echo "\n-". $msg. "-\n";
 }
 
-function _fae_clean_staff_copy_data() {
+function _fae_clean_staff_copy_data($table_name_a = "fae_profile_custom_cache", $table_name_b = "fae_profile_custom_cache_clean") {
+	// Check
+	if(!db_table_exists($table_name_b)) {
+    $sql = "
+      CREATE TABLE $table_name_b(
+        id INT(11) NOT NULL AUTO_INCREMENT,
+        cache_id VARCHAR(256) NOT NULL,
+        data LONGTEXT NOT NULL,
+        PRIMARY KEY ( id )
+      )
+    ";
+    db_query($sql);
+  }	
 
+	// Truncate
+	$sql = "TRUNCATE TABLE $table_name_b";
+	db_query($sql);
+
+	// Load data
+	$sql ="INSERT $table_name_b SELECT * FROM $table_name_a";	
+	db_query($sql);		
 }
