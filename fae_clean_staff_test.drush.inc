@@ -36,13 +36,11 @@ function fae_clean_staff_test() {
 	//$url = "http://$devsite_username:$devsite_password@cc.dev.arts.unimelb.edu.au/about/staff/professor-jaynie-anderson";
 	$ch = curl_init();
 
-  $agent = 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.0.3705; .NET CLR 1.1.4322)';
-
 	// http://stackoverflow.com/questions/2440729/php-curl-how-can-i-emulate-a-get-request-exactly-like-a-web-browser
 	// http://docs.php.net/function.curl-setopt
 	// my_cookie.txt chmod 777
 
-	$agent= 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.0.3705; .NET CLR 1.1.4322)';
+	$agent = 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.0.3705; .NET CLR 1.1.4322)';
 
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
