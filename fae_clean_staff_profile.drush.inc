@@ -57,6 +57,7 @@ function fae_clean_staff_profile() {
 	preg_match('%[^/]+\.[^/:]{2,3}%m', $host, $matches);
 	$domain = $matches[0];
 
+	// Create empty file
 	$log_file = $domain. '_'. 'fae_clean_staff_profile.log';
 	file_put_contents($log_file, '');	
 
@@ -109,6 +110,9 @@ function fae_clean_staff_profile() {
 
 	my_msg("Copy fae_profile_custom_cache to fae_profile_custom_cache_sync");
 	_fae_clean_staff_copy_data('fae_profile_custom_cache', 'fae_profile_custom_cache_sync');
+
+	// Sleep
+	sleep(40);
 
 	my_msg("Copy fae_profile_custom_cache to fae_profile_custom_cache_clean");
 	_fae_clean_staff_copy_data('fae_profile_custom_cache', 'fae_profile_custom_cache_clean');
