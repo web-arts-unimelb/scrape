@@ -108,12 +108,14 @@ function fae_clean_staff_profile() {
 	}
 	curl_close($ch);
 
+	// NOTE: It is not working why?
 	my_msg("Copy fae_profile_custom_cache to fae_profile_custom_cache_sync");
 	_fae_clean_staff_copy_data('fae_profile_custom_cache', 'fae_profile_custom_cache_sync');
 
 	// Sleep
 	sleep(40);
 
+	// NOTE: It is not working why?
 	my_msg("Copy fae_profile_custom_cache to fae_profile_custom_cache_clean");
 	_fae_clean_staff_copy_data('fae_profile_custom_cache', 'fae_profile_custom_cache_clean');
 
