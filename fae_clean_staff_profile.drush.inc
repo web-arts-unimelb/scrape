@@ -65,6 +65,9 @@ function fae_clean_staff_profile() {
 	if($_is_small_data_test) {
 		$i = 0;
 	}	
+	else {
+		$i = 0; // Duplicated
+	}
 
 	my_msg('Tuncate tables: fae_profile_custom_cache, fae_profile_custom_cache_sync, fae_profile_custom_cache_clean');
 	_fae_clean_staff_truncate();
