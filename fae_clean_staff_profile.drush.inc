@@ -6,13 +6,8 @@ include_once($lib_path);
 $devsite_credential_path = dirname(__FILE__). "/config/devsite_credential.config.php";
 include_once($devsite_credential_path);
 
-// Turn on test on small data
-global $_is_small_data_test;
-$_is_small_data_test = FALSE; 
-
-// Is development environment?
-global $_is_dev;
-$_is_dev = FALSE;
+$this_script_config_path = dirname(__FILE__). "/config/fae_clean_staff_profile.config.php";
+include_once($this_script_config_path);
 
 // NOTE: need to turn off anonyous user visit cache in drupal 7
 // Avoid x-drupal-cache
