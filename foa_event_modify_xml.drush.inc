@@ -13,7 +13,7 @@ function foa_event_modify_xml_drush_command() {
     'examples' => array(
       'simple' => dt('drush foa_event_modify_xml'),
     ),
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL,
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
   );
   return $items;
 }

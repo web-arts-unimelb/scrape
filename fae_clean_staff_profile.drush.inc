@@ -12,7 +12,7 @@ $_is_small_data_test = FALSE;
 
 // Is development environment?
 global $_is_dev;
-$_is_dev = TRUE;
+$_is_dev = FALSE;
 
 // NOTE: need to turn off anonyous user visit cache in drupal 7
 // Avoid x-drupal-cache
