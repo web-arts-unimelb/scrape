@@ -143,8 +143,11 @@ WHERE {
         )
       ->condition('entity_id', $row->uid, '=')
       ->execute(); 
- 
-    // Update the cache as well.
+
+
+    // NOTE: Update the cache as well.
+		// Is it necessary? Because the fae cache is cleaned every week,
+		// the effort will be wasted.
 
 
     //test
