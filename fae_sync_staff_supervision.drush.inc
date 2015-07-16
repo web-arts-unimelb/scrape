@@ -28,8 +28,15 @@ function fae_sync_staff_supervision_drush_command() {
 
 
 function fae_sync_staff_supervision() {
+	global $base_url;
+
   my_msg('-start-');
   my_msg('The user page is cached, if you want to see the end result after this script run, clear the user page cache: e.g. http://cc-stage.local/user/32/edit');
+	my_msg('Doing website: '. $base_url);
+	my_msg('Using php max num: '. PHP_INT_MAX);
+
+	my_msg('Reset all supervision status');
+	_reset_all_supervision_status();
 
   $query = db_select('users', 'u');
   $query->join('field_data_field_fae_resource', 'r', 'u.uid = r.entity_id');
@@ -68,7 +75,14 @@ WHERE {
 }";
 
 
+	$test_counter = 0;
+	$test_max = PHP_INT_MAX;
+	//$test_max = 1;
   foreach($result as $row) {
+		if($test_counter >= $test_max) {
+      break;
+    }
+
     /*
       Sample raw query:
 
@@ -132,9 +146,6 @@ WHERE {
 
     $supervision_status = (!empty($supervision) && $supervision == 'Y') ? 1 : 0;
 
-    //test
-    //$supervision_status = 0;
-
     $num_updated = db_update('field_data_field_person_supervision')
       ->fields(
           array(
@@ -147,8 +158,9 @@ WHERE {
 
     // NOTE: Update the cache as well.
 		// Is it necessary? Because the fae cache is cleaned every week,
-		// the effort will be wasted.
-
+		// the effort will be wasted. But the fact is, the supervision field is
+		// separated from the fae cache, so we don't need to update the fae cache.
+		
 
     //test
     my_msg("uid: ". $row->uid);
@@ -157,13 +169,22 @@ WHERE {
 
 
     // Joseki end point is bad.
-    $time = 5;
+    $time = 10;
     my_msg("Sleep for $time". "s");
     sleep($time);
-    
-    //break;
+   
+		++$test_counter; 
   }
 
   my_msg('-end-'); 
 }
 
+function _reset_all_supervision_status($supervision_status = 0) {
+	$num_updated = db_update('field_data_field_person_supervision')
+		->fields(
+    	array(
+      	'field_person_supervision_value' => $supervision_status,
+      )
+    )
+    ->execute();
+}
