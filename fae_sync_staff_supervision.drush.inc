@@ -51,7 +51,15 @@ function fae_sync_staff_supervision() {
 
   $end_point = variable_get('uom_fae_api_endpoint', UOM_SPARQL_ENDPOINT);
 
-  $the_query = "
+	$test_counter = 0;
+	$test_max = PHP_INT_MAX;
+	//$test_max = 5;
+  foreach($result as $row) {
+		if($test_counter >= $test_max) {
+      break;
+    }
+
+$the_query = "
 PREFIX dc:    <http://purl.org/dc/elements/1.1/>
 PREFIX rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
@@ -74,21 +82,20 @@ WHERE {
   OPTIONAL { <!fae_url> fae:availableForSupervision ?supervisor. }
 }";
 
-
-	$test_counter = 0;
-	$test_max = PHP_INT_MAX;
-	//$test_max = 1;
-  foreach($result as $row) {
-		if($test_counter >= $test_max) {
-      break;
-    }
-
     /*
       Sample raw query:
 
       https://mrw.app.unimelb.edu.au/joseki/oracle?query=PREFIX+dc%3A++++%3Chttp%3A%2F%2Fpurl.org%2Fdc%2Felements%2F1.1%2F%3E%0D%0APREFIX+rdf%3A+++%3Chttp%3A%2F%2Fwww.w3.org%2F1999%2F02%2F22-rdf-syntax-ns%23%3E%0D%0APREFIX+rdfs%3A++%3Chttp%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23%3E%0D%0APREFIX+xsd%3A+++%3Chttp%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema%23%3E%0D%0APREFIX+owl%3A+++%3Chttp%3A%2F%2Fwww.w3.org%2F2002%2F07%2Fowl%23%3E%0D%0APREFIX+fn%3A++++%3Chttp%3A%2F%2Fwww.w3.org%2F2005%2Fxpath-functions%23%3E%0D%0APREFIX+ouext%3A+%3Chttp%3A%2F%2Foracle.com%2Fsemtech%2Fjena-adaptor%2Fext%2Fuser-def-function%23%3E%0D%0APREFIX+oext%3A++%3Chttp%3A%2F%2Foracle.com%2Fsemtech%2Fjena-adaptor%2Fext%2Ffunction%23%3E%0D%0APREFIX+ORACLE_SEM_FS_NS%3A+%3Chttp%3A%2F%2Foracle.com%2Fsemtech%23timeout%3D100%2Cqid%3D123%3E%0D%0ASELECT+%3Fsc+%3Fc%0D%0AWHERE+%0D%0A++{+%3Fsc+rdfs%3AsubClassOf+%3Fc}&stylesheet=%2Fjoseki%2Fxml-to-html.xsl
     */
+
+		//test
+		//my_msg("row_field_fae_resource_url: ". $row->field_fae_resource_url);
+
     $the_query = t($the_query, array('!fae_url' => $row->field_fae_resource_url));
+
+		// test
+		//my_msg("The actual query: ". $the_query);
+
 
     //test: for supervision === N
     //$test_fae_url = 'http://www.findanexpert.unimelb.edu.au/individual/person100034';
@@ -163,9 +170,10 @@ WHERE {
 		
 
     //test
-    my_msg("uid: ". $row->uid);
     my_msg("fae_url: ". $row->field_fae_resource_url);
-    my_msg("supervision: ". $row->field_person_supervision_value);
+		my_msg("uid: ". $row->uid);
+    my_msg("old supervision status: ". $row->field_person_supervision_value);
+		my_msg("new supervision status: ". $supervision_status);
 
 
     // Joseki end point is bad.
