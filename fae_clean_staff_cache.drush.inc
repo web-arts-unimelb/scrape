@@ -3,6 +3,8 @@
 /**
  * Implements hook_drush_command().
  */
+// It clean the find an expert cache table, so it can
+// display latest staff info.
 function fae_clean_staff_cache_drush_command() {
   $items['fae_clean_staff_cache'] = array(
     'callback' => 'fae_clean_staff_cache',

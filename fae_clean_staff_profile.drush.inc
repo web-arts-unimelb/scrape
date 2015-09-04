@@ -1,5 +1,7 @@
 <?php
-
+// This script is used to wipe out all 3 find an expert cache table
+// and regenerate them. NOTE that the coping tables below is not working,
+// so need to do it manually.
 $lib_path = dirname(__FILE__). "/lib/lib.php";
 include_once($lib_path); 
 

@@ -1,5 +1,5 @@
 <?php
-
+// Sync the find an expert supervision to a drupal field.
 $lib_path = dirname(__FILE__). "/lib/lib.php";
 include_once($lib_path);
 

@@ -1,5 +1,6 @@
 <?php
 
+// This is a test.
 $lib_path = dirname(__FILE__). "/lib/lib.php";
 include_once($lib_path);
 
